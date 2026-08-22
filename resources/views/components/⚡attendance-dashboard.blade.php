@@ -8,27 +8,34 @@ use Livewire\Component;
 new class extends Component
 {
     public bool $isLocked = false;
+    public string $activeTab = 'isobot';
 
     #[Computed]
     public function stats()
     {
         return Category::withCount([
-            'teams',
-            'teams as checked_in_count' => fn($q) => $q->where('status', 'checked_in'),
-            'teams as absent_count'      => fn($q) => $q->where('status', 'absent'),
-            'teams as registered_count'  => fn($q) => $q->where('status', 'registered'),
-        ])->orderBy('sort_order')->get();
+            'teams' => fn($q) => $q->where('game_type', $this->activeTab),
+            'teams as checked_in_count' => fn($q) => $q->where('status', 'checked_in')->where('game_type', $this->activeTab),
+            'teams as absent_count'      => fn($q) => $q->where('status', 'absent')->where('game_type', $this->activeTab),
+            'teams as pending_count'  => fn($q) => $q->where('status', 'registered')->where('game_type', $this->activeTab),
+        ])->having('teams_count', '>', 0)->orderBy('sort_order')->get();
     }
 
     #[Computed]
     public function totals()
     {
         return [
-            'total'      => Team::count(),
-            'checked_in' => Team::where('status', 'checked_in')->count(),
-            'absent'     => Team::where('status', 'absent')->count(),
-            'pending'    => Team::where('status', 'registered')->count(),
+            'total'      => Team::where('game_type', $this->activeTab)->count(),
+            'checked_in' => Team::where('status', 'checked_in')->where('game_type', $this->activeTab)->count(),
+            'absent'     => Team::where('status', 'absent')->where('game_type', $this->activeTab)->count(),
+            'pending'    => Team::where('status', 'registered')->where('game_type', $this->activeTab)->count(),
         ];
+    }
+
+    public function switchTab(string $tab)
+    {
+        $this->activeTab = $tab;
+        $this->refreshStats();
     }
 
     public function lockAttendance(): void
@@ -58,9 +65,34 @@ new class extends Component
 ?>
 
 <div wire:poll.10s="refreshStats" class="space-y-6 animate-slide-up">
+    
+    {{-- Game Tabs --}}
+    <div class="flex gap-2 overflow-x-auto pb-2">
+        <button wire:click="switchTab('isobot')" 
+                class="px-5 py-2.5 rounded-xl text-sm font-bold transition-all shrink-0 {{ $activeTab === 'isobot' ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20' : 'bg-white border border-base-200 text-base-content/60 hover:bg-base-200' }}">
+            🤖 Isobot Soccer
+        </button>
+        <button wire:click="switchTab('sky_soccer')" 
+                class="px-5 py-2.5 rounded-xl text-sm font-bold transition-all shrink-0 {{ $activeTab === 'sky_soccer' ? 'bg-violet-600 text-white shadow-md shadow-violet-600/20' : 'bg-white border border-base-200 text-base-content/60 hover:bg-base-200' }}">
+            🚁 Drone Sky Soccer
+        </button>
+        <button wire:click="switchTab('obstacle')" 
+                class="px-5 py-2.5 rounded-xl text-sm font-bold transition-all shrink-0 {{ $activeTab === 'obstacle' ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20' : 'bg-white border border-base-200 text-base-content/60 hover:bg-base-200' }}">
+            🏁 Drone Obstacle
+        </button>
+    </div>
+
     <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
-            <h2 class="text-xl font-extrabold text-base-content">Papan Pemuka Kehadiran</h2>
+            @php
+                $gameLabel = match($activeTab) {
+                    'isobot' => 'Isobot Soccer',
+                    'sky_soccer' => 'Drone Sky Soccer',
+                    'obstacle' => 'Drone Obstacle',
+                    default => 'Permainan'
+                };
+            @endphp
+            <h2 class="text-xl font-extrabold text-base-content">Papan Pemuka Kehadiran — {{ $gameLabel }}</h2>
             <p class="text-xs text-base-content/40 mt-0.5">Dikemaskini setiap 10 saat</p>
         </div>
         @if(!$isLocked)
@@ -126,7 +158,7 @@ new class extends Component
                 <div class="flex justify-between text-xs font-semibold">
                     <span class="text-emerald-600">✓ {{ $cat->checked_in_count }} Hadir</span>
                     <span class="text-red-500">✕ {{ $cat->absent_count }} Tidak</span>
-                    <span class="text-amber-500">⏳ {{ $cat->registered_count }} Belum</span>
+                    <span class="text-amber-500">⏳ {{ $cat->pending_count }} Belum</span>
                     <span class="text-primary font-bold">{{ $pct }}%</span>
                 </div>
             </div>

@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+ï»¿<!DOCTYPE html>
 <html lang="{{ app()->getLocale() }}" data-theme="mric">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Semakan Pasukan — MRIC</title>
+    <title>Semakan Pasukan ï¿½ MIRC</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -30,8 +30,8 @@
                     </div>
                 </div>
                 <div class="hidden sm:block">
-                    <p class="font-extrabold text-sm text-primary leading-none">MICROBIT ROBOTIC</p>
-                    <p class="font-semibold text-xs text-secondary leading-none mt-0.5">INNOVATION COMPETITION</p>
+                    <p class="font-extrabold text-sm text-primary leading-none">MICROBIT INNOVATION</p>
+                    <p class="font-semibold text-xs text-secondary leading-none mt-0.5">ROBOTIC COMPETITION</p>
                 </div>
             </div>
 
@@ -61,7 +61,7 @@
 
     {{-- Footer --}}
     <footer class="bg-white border-t border-base-200 py-5 text-center text-xs text-base-content/40">
-        <p class="font-medium">© {{ date('Y') }} Microbit Robotic Innovation Competition</p>
+        <p class="font-medium">ï¿½ {{ date('Y') }} Microbit Innovation Robotic Competition</p>
         <p class="mt-1">Sistem Pengurusan Pertandingan</p>
     </footer>
 

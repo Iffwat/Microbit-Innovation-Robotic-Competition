@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 class Group extends Model
 {
     protected $fillable = [
-        'category_id', 'group_name', 'group_letter',
+        'category_id', 'game_type', 'group_name', 'group_letter',
         'field_number', 'is_complete',
     ];
 
@@ -64,3 +64,4 @@ class Group extends Model
         return $this->matches()->where('status', 'completed')->count();
     }
 }
+

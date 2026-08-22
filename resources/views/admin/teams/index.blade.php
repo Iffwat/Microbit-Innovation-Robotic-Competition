@@ -66,10 +66,18 @@
                         @forelse($teams as $index => $team)
                         <tr>
                             <td class="text-base-content/50 text-xs">{{ $teams->firstItem() + $index }}</td>
-                            <td>
-                                <span class="badge badge-primary badge-sm mb-1">{{ $team->game_type_label }}</span><br>
-                                <span class="badge badge-outline badge-sm">{{ $team->category->name }}</span>
-                            </td>
+                            <td class="px-3 py-4">
+                            @php
+                                $gameColors = [
+                                    'isobot'    => 'bg-blue-100 text-blue-700',
+                                    'sky_soccer'=> 'bg-violet-100 text-violet-700',
+                                    'obstacle'  => 'bg-amber-100 text-amber-700',
+                                ];
+                                $gameColor = $gameColors[$team->game_type] ?? 'bg-base-200 text-base-content/60';
+                            @endphp
+                            <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full mb-1 block w-fit {{ $gameColor }}">{{ $team->game_type_label }}</span>
+                            <span class="inline-flex items-center gap-1 text-xs font-medium bg-base-200 text-base-content/60 px-2 py-0.5 rounded-full w-fit">{{ $team->category->name }}</span>
+                        </td>
                             <td>
                                 <div class="font-semibold">{{ $team->team_name }}</div>
                                 <div class="text-xs text-base-content/60">{{ $team->school_name }}</div>

@@ -1,9 +1,9 @@
-<!DOCTYPE html>
-<html lang="{{ app()->getLocale() }}" data-theme="mric">
+ï»¿<!DOCTYPE html>
+<html lang="{{ app()->getLocale() }}" data-theme="MIRC">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Log Masuk — MRIC TMS</title>
+    <title>Log Masuk ï¿½ MIRC TMS</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -31,8 +31,8 @@
                     <span class="text-white text-2xl hidden">??</span>
                 </div>
             </div>
-            <h1 class="text-white font-extrabold text-xl tracking-wide">MICROBIT ROBOTIC</h1>
-            <p class="text-white/70 text-sm mt-0.5">INNOVATION COMPETITION</p>
+            <h1 class="text-white font-extrabold text-xl tracking-wide">MICROBIT INNOVATION</h1>
+            <p class="text-white/70 text-sm mt-0.5">ROBOTIC COMPETITION</p>
         </div>
 
         {{-- Login Card --}}
@@ -67,7 +67,7 @@
                     <label class="block text-xs font-semibold text-base-content/60 uppercase tracking-widest mb-2">Kod PIN</label>
                     <input type="password"
                            name="pin"
-                           placeholder="• • • •"
+                           placeholder="ï¿½ ï¿½ ï¿½ ï¿½"
                            class="w-full text-center text-3xl tracking-[0.5em] font-bold border-2 border-base-300 rounded-2xl py-4 px-4 focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all placeholder:tracking-widest placeholder:text-base-content/20"
                            maxlength="4"
                            pattern="[0-9]*"

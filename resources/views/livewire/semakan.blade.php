@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Team;
+use App\Models\Group;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -9,6 +10,27 @@ new class extends Component {
     
     #[Url(as: 'q')]
     public string $search = '';
+
+    public ?int $viewGroupId = null;
+
+    public function viewGroup($groupId)
+    {
+        $this->viewGroupId = $groupId;
+        $this->dispatch('open-group-modal');
+    }
+
+    public function closeGroupModal()
+    {
+        $this->viewGroupId = null;
+        $this->dispatch('close-group-modal');
+    }
+
+    #[Computed]
+    public function selectedGroup()
+    {
+        if (!$this->viewGroupId) return null;
+        return Group::with(['groupTeams.team'])->find($this->viewGroupId);
+    }
 
     #[Computed]
     public function teams()
@@ -31,6 +53,13 @@ new class extends Component {
 ?>
 
 <div class="space-y-8 animate-slide-up">
+    {{-- Tunjuk poster jika carian kosong --}}
+    @if(strlen(trim($search)) < 3)
+    <div class="flex justify-center">
+        <img src="{{ asset('images/Poster.jpeg') }}" alt="Poster MIRC" class="rounded-3xl shadow-xl max-w-full h-auto md:max-w-3xl border-4 border-white transition-all hover:scale-[1.02]">
+    </div>
+    @endif
+
     {{-- Search Hero --}}
     <div class="relative overflow-hidden bg-gradient-to-br from-primary via-[#1e3a8a] to-secondary rounded-3xl p-8 md:p-12 text-white text-center">
         <div class="absolute inset-0 pointer-events-none">
@@ -65,35 +94,92 @@ new class extends Component {
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 @foreach($this->teams as $team)
-                <div wire:key="team-{{ $team->id }}" class="bg-white rounded-2xl border border-base-200 shadow-sm hover:border-primary hover:shadow-md transition-all p-5">
-                    <div class="flex justify-between items-start mb-3">
-                        <div>
-                            <h4 class="font-bold text-base-content text-base">{{ $team->team_name }}</h4>
-                            <p class="text-xs text-base-content/50 mt-0.5">🏫 {{ $team->school_name }}</p>
+                @php
+                    // Get the group matching this team's game_type
+                    $teamGroup = $team->groupTeams
+                        ->filter(fn($gt) => optional($gt->group)->game_type === $team->game_type)
+                        ->first();
+                    $groupLetter = $teamGroup?->group?->group_letter;
+                    $groupName   = $teamGroup?->group?->group_name;
+
+                    // Color per game type
+                    $gameColors = [
+                        'isobot'     => ['bg' => 'bg-blue-600',   'light' => 'bg-blue-50 text-blue-700 border-blue-200'],
+                        'sky_soccer' => ['bg' => 'bg-violet-600', 'light' => 'bg-violet-50 text-violet-700 border-violet-200'],
+                        'obstacle'   => ['bg' => 'bg-amber-500',  'light' => 'bg-amber-50 text-amber-700 border-amber-200'],
+                    ];
+                    $gc = $gameColors[$team->game_type] ?? ['bg' => 'bg-primary', 'light' => 'bg-primary/10 text-primary border-primary/20'];
+                @endphp
+                <div wire:key="team-{{ $team->id }}"
+                     class="bg-white rounded-2xl border border-base-200 shadow-sm hover:shadow-md hover:border-primary/30 transition-all overflow-hidden">
+
+                    {{-- Top bar with game colour --}}
+                    <div class="h-1.5 w-full {{ $gc['bg'] }}"></div>
+
+                    <div class="p-5">
+                        {{-- Header row: team name + group badge --}}
+                        <div class="flex items-start justify-between gap-3 mb-4">
+                            <div class="flex-1 min-w-0">
+                                <h4 class="font-extrabold text-base-content text-base leading-tight">{{ $team->team_name }}</h4>
+                                <p class="text-xs text-base-content/50 mt-1">🏫 {{ $team->school_name }}</p>
+                            </div>
+
+                            {{-- Prominent group letter --}}
+                            @if($groupLetter)
+                                <div class="flex flex-col items-center shrink-0 group" wire:click="viewGroup({{ $teamGroup->group->id }})" role="button">
+                                    <div class="{{ $gc['bg'] }} group-hover:bg-opacity-80 text-white w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg shadow-{{ explode('-', $gc['bg'])[1] ?? 'primary' }}/20 transition-all group-hover:scale-105 active:scale-95 cursor-pointer">
+                                        <span class="text-2xl font-black">{{ $groupLetter }}</span>
+                                    </div>
+                                    <span class="text-[10px] font-bold text-base-content/40 mt-1.5 uppercase tracking-widest group-hover:text-primary transition-colors">Kumpulan</span>
+                                </div>
+                            @else
+                                <div class="flex flex-col items-center shrink-0">
+                                    <div class="bg-base-200 w-14 h-14 rounded-2xl flex items-center justify-center">
+                                        <svg class="w-6 h-6 text-base-content/20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    </div>
+                                    <span class="text-[10px] font-bold text-base-content/30 mt-1 uppercase tracking-widest">Belum Diundi</span>
+                                </div>
+                            @endif
                         </div>
-                        <div class="text-right shrink-0 ml-3">
-                            <span class="block text-xs font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full mb-1">{{ $team->game_type_label }}</span>
-                            <span class="text-xs font-medium bg-base-200 text-base-content/60 px-2 py-0.5 rounded-full">{{ $team->category->name }}</span>
+
+                        {{-- Badges row --}}
+                        <div class="flex flex-wrap gap-2 mb-4">
+                            {{-- Game type --}}
+                            <span class="inline-flex items-center text-xs font-bold px-2.5 py-1 rounded-full border {{ $gc['light'] }}">
+                                {{ $team->game_type_label }}
+                            </span>
+                            {{-- Category --}}
+                            <span class="inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-full bg-base-200 text-base-content/60">
+                                {{ $team->category->name }}
+                            </span>
+                            {{-- Attendance status --}}
+                            @if($team->status === 'checked_in')
+                                <span class="status-badge-present">● Hadir</span>
+                            @elseif($team->status === 'absent')
+                                <span class="status-badge-absent">● Tidak Hadir</span>
+                            @else
+                                <span class="status-badge-pending">● Berdaftar</span>
+                            @endif
                         </div>
-                    </div>
-                    <div class="flex gap-2 mb-4">
-                        @if($team->status === 'checked_in') <span class="status-badge-present">● Hadir</span>
-                        @elseif($team->status === 'absent') <span class="status-badge-absent">● Tidak Hadir</span>
-                        @else <span class="status-badge-pending">● Berdaftar</span>
+
+                        {{-- Players list --}}
+                        <div class="bg-base-200/40 rounded-xl p-3 mb-4">
+                            <p class="text-[10px] font-bold uppercase tracking-widest text-base-content/40 mb-2">Senarai Pemain</p>
+                            <div class="space-y-1 text-sm">
+                                @if($team->player_1) <p><span class="font-bold text-primary mr-1">1.</span>{{ $team->player_1 }}</p> @endif
+                                @if($team->player_2) <p><span class="font-bold text-primary mr-1">2.</span>{{ $team->player_2 }}</p> @endif
+                                @if($team->player_3) <p><span class="font-bold text-primary mr-1">3.</span>{{ $team->player_3 }} <span class="text-xs text-base-content/40">(Rizab)</span></p> @endif
+                            </div>
+                        </div>
+
+                        {{-- Explicit View Group Button for UX --}}
+                        @if($groupLetter)
+                            <button wire:click="viewGroup({{ $teamGroup->group->id }})" 
+                                    class="w-full py-2.5 flex items-center justify-center gap-2 bg-base-200 hover:bg-base-300 text-base-content/70 hover:text-base-content text-sm font-bold rounded-xl transition-colors">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                Lihat Senarai Lawan (Kump. {{ $groupLetter }})
+                            </button>
                         @endif
-                        @if($team->groupTeams->isNotEmpty())
-                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">Kumpulan {{ $team->groupTeams->first()->group->name }}</span>
-                        @else
-                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-base-200 text-base-content/50">Belum Diundi</span>
-                        @endif
-                    </div>
-                    <div class="bg-base-200/50 rounded-xl p-3">
-                        <p class="text-[10px] font-bold uppercase tracking-widest text-base-content/40 mb-2">Senarai Pemain</p>
-                        <div class="space-y-1 text-sm">
-                            @if($team->player_1) <p><span class="font-bold text-primary">1.</span> {{ $team->player_1 }}</p> @endif
-                            @if($team->player_2) <p><span class="font-bold text-primary">2.</span> {{ $team->player_2 }}</p> @endif
-                            @if($team->player_3) <p><span class="font-bold text-primary">3.</span> {{ $team->player_3 }} <span class="text-xs text-base-content/40">(Rizab)</span></p> @endif
-                        </div>
                     </div>
                 </div>
                 @endforeach
@@ -105,4 +191,89 @@ new class extends Component {
             </div>
         @endif
     @endif
+
+    {{-- Group Modal --}}
+    <div x-data="{ open: false }" 
+         x-on:open-group-modal.window="open = true" 
+         x-on:close-group-modal.window="open = false">
+        
+        <div x-show="open" style="display: none;" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+            <div class="flex items-end justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+                
+                {{-- Backdrop --}}
+                <div x-show="open" 
+                     x-transition:enter="ease-out duration-300" 
+                     x-transition:enter-start="opacity-0" 
+                     x-transition:enter-end="opacity-100" 
+                     x-transition:leave="ease-in duration-200" 
+                     x-transition:leave-start="opacity-100" 
+                     x-transition:leave-end="opacity-0" 
+                     class="fixed inset-0 transition-opacity bg-black/50 backdrop-blur-sm" 
+                     aria-hidden="true" 
+                     wire:click="closeGroupModal"></div>
+
+                <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+                {{-- Modal Panel --}}
+                <div x-show="open" 
+                     x-transition:enter="ease-out duration-300" 
+                     x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" 
+                     x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" 
+                     x-transition:leave="ease-in duration-200" 
+                     x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" 
+                     x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" 
+                     class="inline-block w-full max-w-lg overflow-hidden text-left align-bottom transition-all transform bg-base-100 rounded-3xl shadow-2xl sm:my-8 sm:align-middle border border-base-200">
+                    
+                    @if($this->selectedGroup)
+                        @php
+                            $sgc = [
+                                'isobot'     => 'bg-blue-600',
+                                'sky_soccer' => 'bg-violet-600',
+                                'obstacle'   => 'bg-amber-500',
+                            ][$this->selectedGroup->game_type] ?? 'bg-primary';
+                        @endphp
+                        
+                        <div class="relative px-6 py-5 {{ $sgc }} text-white flex justify-between items-center">
+                            <div>
+                                <h3 class="text-2xl font-black" id="modal-title">{{ $this->selectedGroup->group_name }}</h3>
+                                <p class="text-white/70 text-xs mt-0.5 font-medium uppercase tracking-widest">{{ $this->selectedGroup->category->name ?? '' }} • {{ str_replace('_', ' ', $this->selectedGroup->game_type) }}</p>
+                            </div>
+                            <button wire:click="closeGroupModal" class="text-white/50 hover:text-white bg-white/10 hover:bg-white/20 p-2 rounded-xl transition-colors">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                        </div>
+                        
+                        <div class="p-6">
+                            <p class="text-sm font-bold text-base-content/50 mb-3 uppercase tracking-widest">Senarai Pasukan (Lawan)</p>
+                            
+                            <div class="space-y-3">
+                                @foreach($this->selectedGroup->groupTeams as $index => $gt)
+                                    <div class="flex items-center gap-4 bg-base-200/50 p-4 rounded-2xl border border-base-200 hover:border-primary/30 transition-colors {{ $gt->team_id === $this->viewGroupId ? 'ring-2 ring-primary bg-primary/5' : '' }}">
+                                        <div class="w-8 h-8 rounded-full bg-base-300 text-base-content/50 flex items-center justify-center font-bold text-sm shrink-0">
+                                            {{ $index + 1 }}
+                                        </div>
+                                        <div>
+                                            <h4 class="font-bold text-base-content leading-tight">{{ $gt->team->team_name }}</h4>
+                                            <p class="text-xs text-base-content/60 mt-0.5">🏫 {{ $gt->team->school_name }}</p>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                        
+                        <div class="px-6 py-4 bg-base-200/50 flex justify-end">
+                            <button wire:click="closeGroupModal" class="bg-white border border-base-300 hover:bg-base-200 text-base-content font-bold px-6 py-2.5 rounded-xl transition-colors">
+                                Tutup
+                            </button>
+                        </div>
+                    @else
+                        <div class="p-8 text-center">
+                            <span class="loading loading-spinner loading-lg text-primary"></span>
+                            <p class="mt-4 text-base-content/50 font-medium">Memuatkan kumpulan...</p>
+                        </div>
+                    @endif
+                </div>
+            </div>
+        </div>
+    </div>
 </div>

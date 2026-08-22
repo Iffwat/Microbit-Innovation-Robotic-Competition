@@ -1,10 +1,10 @@
-<!DOCTYPE html>
+ï»¿<!DOCTYPE html>
 <html lang="{{ app()->getLocale() }}" data-theme="mric">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Sistem Pengurusan Pertandingan Microbit Robotic Innovation Competition">
-    <title>@yield('title', 'Papan Pemuka') — MRIC TMS</title>
+    <meta name="description" content="Sistem Pengurusan Pertandingan Microbit Innovation Robotic Competition">
+    <title>@yield('title', 'Papan Pemuka') ï¿½ MIRC TMS</title>
 
     {{-- Fonts --}}
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -29,7 +29,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
                     </svg>
                 </label>
-                <span class="text-base font-bold text-primary lg:hidden">MRIC TMS</span>
+                <span class="text-base font-bold text-primary lg:hidden">MIRC TMS</span>
             </div>
 
             <div class="navbar-center hidden lg:flex">
@@ -105,7 +105,7 @@
         </main>
 
         <footer class="py-3 px-6 text-center text-xs text-base-content/30 border-t border-base-200 bg-white">
-            © {{ date('Y') }} Microbit Robotic Innovation Competition — MRIC TMS v1.0
+            ï¿½ {{ date('Y') }} Microbit Innovation Robotic Competition ï¿½ MIRC TMS v1.0
         </footer>
     </div>
 
@@ -128,8 +128,8 @@
                         </div>
                     </div>
                 </div>
-                <p class="font-extrabold text-sm text-primary leading-tight">MICROBIT ROBOTIC</p>
-                <p class="font-bold text-xs text-secondary leading-tight">INNOVATION COMPETITION</p>
+                <p class="font-extrabold text-sm text-primary leading-tight">MICROBIT INNOVATION</p>
+                <p class="font-bold text-xs text-secondary leading-tight">ROBOTIC COMPETITION</p>
                 <p class="text-xs text-base-content/40 mt-0.5">Sistem Pengurusan Pertandingan</p>
             </div>
 

@@ -14,7 +14,7 @@
         <div class="relative flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
             <div>
                 <p class="text-white/60 text-sm font-medium mb-1">Selamat Datang, Master Admin ??</p>
-                <h1 class="text-2xl md:text-3xl font-extrabold mb-1">Microbit Robotic Innovation</h1>
+                <h1 class="text-2xl md:text-3xl font-extrabold mb-1">Microbit Innovation Robotic</h1>
                 <p class="text-white/70 text-sm">Sistem Pengurusan Pertandingan — {{ now()->format('d F Y') }}</p>
                 <div class="flex gap-2 mt-4 flex-wrap">
                     @if($totalTeams === 0)

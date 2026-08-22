@@ -73,6 +73,12 @@ Route::middleware('pin.auth')->prefix('admin')->name('admin.')->group(function (
         Route::get('/kumpulan', function () {
             return view('admin.groups.index');
         })->name('groups.index');
+        
+        Route::get('/kumpulan/{game}/{category}', function ($game, $category) {
+            return view('admin.groups.show', compact('game', 'category'));
+        })->name('groups.show');
     });
 });
+
+
 
