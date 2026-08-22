@@ -73,9 +73,14 @@ Route::middleware('pin.auth')->prefix('admin')->name('admin.')->group(function (
         Route::post('/import', [ImportController::class, 'store'])->name('import.store');
         Route::post('/import/clear', [ImportController::class, 'clear'])->name('import.clear');
 
-        // Teams
+        // Teams CRUD
         Route::get('/pasukan', [TeamController::class, 'index'])->name('teams.index');
+        Route::get('/pasukan/tambah', [TeamController::class, 'create'])->name('teams.create');
+        Route::post('/pasukan', [TeamController::class, 'store'])->name('teams.store');
         Route::get('/pasukan/{team}', [TeamController::class, 'show'])->name('teams.show');
+        Route::get('/pasukan/{team}/kemaskini', [TeamController::class, 'edit'])->name('teams.edit');
+        Route::put('/pasukan/{team}', [TeamController::class, 'update'])->name('teams.update');
+        Route::delete('/pasukan/{team}', [TeamController::class, 'destroy'])->name('teams.destroy');
 
         // Groups
         Route::get('/kumpulan', function () {

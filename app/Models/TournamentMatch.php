@@ -104,7 +104,12 @@ class TournamentMatch extends Model
         return $timeStr;
     }
 
-    // Determine winner from scores and update standings
+    public function isKnockout(): bool
+    {
+        return in_array($this->stage, ['trophy_knockout', 'cup_knockout']);
+    }
+
+    // Determine winner from scores and update standings / advance knockout winners
     public function resolveResult(): void
     {
         $isObstacle = $this->group && $this->group->game_type === 'obstacle';
@@ -134,9 +139,161 @@ class TournamentMatch extends Model
         $this->completed_at = now();
         $this->save();
 
-        // Update group standings if group match
+        // 1. Update group standings if group match
         if ($this->stage === 'group' && $this->group_id) {
             $this->updateGroupStandings();
+        }
+
+        // 2. Auto-advance winner to the next round if knockout match
+        if ($this->isKnockout() && $this->winner_team_id) {
+            $this->advanceKnockoutWinner();
+        }
+    }
+
+    public function advanceKnockoutWinner(): void
+    {
+        if (!$this->winner_team_id || !$this->category_id || !$this->stage) {
+            return;
+        }
+
+        $roundFlow = [
+            'Pusingan ke-32' => 'Pusingan ke-16',
+            'Pusingan 32'    => 'Pusingan ke-16',
+            'Pusingan ke-16' => 'Suku Akhir',
+            'Pusingan 16'    => 'Suku Akhir',
+            'Suku Akhir'     => 'Separuh Akhir',
+        ];
+
+        $pos = (int)$this->bracket_position;
+        $winnerId = $this->winner_team_id;
+        $loserId = ($this->winner_team_id == $this->home_team_id) ? $this->away_team_id : $this->home_team_id;
+
+        // CASE 1: Standard Feeder Rounds (P32 -> P16 -> Suku Akhir -> Separuh Akhir)
+        if (isset($roundFlow[$this->round_name])) {
+            $nextRoundName = $roundFlow[$this->round_name];
+            $nextPos = (int)ceil($pos / 2);
+            $isHomeSlot = ($pos % 2 !== 0);
+
+            $nextMatch = self::where('category_id', $this->category_id)
+                ->where('stage', $this->stage)
+                ->where('round_name', $nextRoundName)
+                ->where('bracket_position', $nextPos)
+                ->first();
+
+            if ($nextMatch) {
+                if ($isHomeSlot) {
+                    $nextMatch->home_team_id = $winnerId;
+                } else {
+                    $nextMatch->away_team_id = $winnerId;
+                }
+                $nextMatch->save();
+            }
+        }
+        // CASE 2: Semi-Finals (Separuh Akhir -> Akhir & Penentuan Tempat Ke-3)
+        elseif (in_array($this->round_name, ['Separuh Akhir', 'Semi Final'])) {
+            $isHomeSlot = ($pos === 1); // SF Match 1 -> Home slot, SF Match 2 -> Away slot
+
+            // 🏆 Winner goes to FINAL (Akhir)
+            $finalMatch = self::where('category_id', $this->category_id)
+                ->where('stage', $this->stage)
+                ->where('round_name', 'Akhir')
+                ->where('bracket_position', 1)
+                ->first();
+
+            if ($finalMatch) {
+                if ($isHomeSlot) {
+                    $finalMatch->home_team_id = $winnerId;
+                } else {
+                    $finalMatch->away_team_id = $winnerId;
+                }
+                $finalMatch->save();
+            }
+
+            // 🥉 Loser goes to 3RD PLACE (Penentuan Tempat Ke-3)
+            if ($loserId) {
+                $thirdMatch = self::where('category_id', $this->category_id)
+                    ->where('stage', $this->stage)
+                    ->where('round_name', 'Penentuan Tempat Ke-3')
+                    ->where('bracket_position', 1)
+                    ->first();
+
+                if ($thirdMatch) {
+                    if ($isHomeSlot) {
+                        $thirdMatch->home_team_id = $loserId;
+                    } else {
+                        $thirdMatch->away_team_id = $loserId;
+                    }
+                    $thirdMatch->save();
+                }
+            }
+        }
+    }
+
+    public function clearPromotedKnockoutSlot(): void
+    {
+        if (!$this->category_id || !$this->stage) return;
+
+        $roundFlow = [
+            'Pusingan ke-32' => 'Pusingan ke-16',
+            'Pusingan 32'    => 'Pusingan ke-16',
+            'Pusingan ke-16' => 'Suku Akhir',
+            'Pusingan 16'    => 'Suku Akhir',
+            'Suku Akhir'     => 'Separuh Akhir',
+        ];
+
+        $pos = (int)$this->bracket_position;
+
+        if (isset($roundFlow[$this->round_name])) {
+            $nextRoundName = $roundFlow[$this->round_name];
+            $nextPos = (int)ceil($pos / 2);
+            $isHomeSlot = ($pos % 2 !== 0);
+
+            $nextMatch = self::where('category_id', $this->category_id)
+                ->where('stage', $this->stage)
+                ->where('round_name', $nextRoundName)
+                ->where('bracket_position', $nextPos)
+                ->first();
+
+            if ($nextMatch && $nextMatch->status === 'scheduled') {
+                if ($isHomeSlot) {
+                    $nextMatch->home_team_id = null;
+                } else {
+                    $nextMatch->away_team_id = null;
+                }
+                $nextMatch->save();
+            }
+        } elseif (in_array($this->round_name, ['Separuh Akhir', 'Semi Final'])) {
+            $isHomeSlot = ($pos === 1);
+
+            $finalMatch = self::where('category_id', $this->category_id)
+                ->where('stage', $this->stage)
+                ->where('round_name', 'Akhir')
+                ->where('bracket_position', 1)
+                ->first();
+
+            if ($finalMatch && $finalMatch->status === 'scheduled') {
+                if ($isHomeSlot) {
+                    $finalMatch->home_team_id = null;
+                } else {
+                    $finalMatch->away_team_id = null;
+                }
+                $finalMatch->save();
+            }
+
+            $thirdMatch = self::where('category_id', $this->category_id)
+                ->where('stage', $this->stage)
+                ->where('round_name', 'Penentuan Tempat Ke-3')
+                ->where('bracket_position', 1)
+                ->first();
+
+            if ($thirdMatch && $thirdMatch->status === 'scheduled') {
+                if ($isHomeSlot) {
+                    $thirdMatch->home_team_id = null;
+                } else {
+                    $thirdMatch->away_team_id = null;
+                }
+                $thirdMatch->save();
+            }
         }
     }
 

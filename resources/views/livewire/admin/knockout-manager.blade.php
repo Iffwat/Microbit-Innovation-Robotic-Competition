@@ -213,15 +213,23 @@ new class extends Component {
                             <a href="{{ route('admin.knockout.show', $category->id) }}" class="flex-1 text-center bg-white border-2 border-primary text-primary hover:bg-primary hover:text-white font-bold py-2.5 rounded-xl transition-colors text-sm">
                                 Lihat Carta
                             </a>
+                            @if(session('auth_role') === 'master')
                             <button wire:click="selectCategory({{ $category->id }})" class="px-3 bg-base-200 hover:bg-red-100 hover:text-red-600 text-base-content/60 font-bold rounded-xl transition-colors text-sm" title="Jana Semula">
                                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                             </button>
+                            @endif
                         </div>
-                    @else
-                        <button wire:click="selectCategory({{ $category->id }})" class="w-full bg-primary hover:bg-primary/90 text-white font-bold py-2.5 rounded-xl shadow-lg shadow-primary/20 transition-colors text-sm">
-                            Jana Kalah Mati
-                        </button>
-                    @endif
+                      @else
+                          @if(session('auth_role') === 'master')
+                          <button wire:click="selectCategory({{ $category->id }})" class="w-full bg-primary hover:bg-primary/90 text-white font-bold py-2.5 rounded-xl shadow-lg shadow-primary/20 transition-colors text-sm">
+                              Jana Kalah Mati
+                          </button>
+                          @else
+                          <button disabled class="w-full bg-base-200 text-base-content/40 font-bold py-2.5 rounded-xl cursor-not-allowed text-sm">
+                              Menunggu Admin
+                          </button>
+                          @endif
+                      @endif
                 </div>
             </div>
         @endforeach

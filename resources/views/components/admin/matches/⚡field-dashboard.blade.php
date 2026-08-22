@@ -50,7 +50,6 @@ new class extends Component
 
         return TournamentMatch::with(['homeTeam', 'awayTeam', 'category', 'group'])
             ->where('field_number', $this->activeField)
-            ->whereNotNull('group_id')
             ->orderByRaw("
                 CASE status
                     WHEN 'in_progress' THEN 1
@@ -200,6 +199,8 @@ new class extends Component
             ]);
             if ($match->stage === 'group' && $match->group_id) {
                 $match->updateGroupStandings(); // To recalculate points
+            } elseif ($match->isKnockout()) {
+                $match->clearPromotedKnockoutSlot();
             }
             session()->flash('success', 'Perlawanan telah di-reset untuk Rematch.');
             $this->closeScoring();

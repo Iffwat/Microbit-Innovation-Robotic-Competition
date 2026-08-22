@@ -1,191 +1,26 @@
 <?php
-
 use App\Models\Category;
 use App\Models\Team;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Url;
 use Livewire\Component;
-
-new class extends Component
-{
-    #[Url]
-    public string $search = '';
-
-    public string $filterGame     = '';
-    public string $filterCategory = '';
-    public ?int   $highlightedId  = null;
-    public string $message        = '';
-    public string $messageType    = ''; // success | error | warning
-    public bool   $isLocked       = false;
-
-    // Fast Edit Form State
-    public bool   $isEditing       = false;
-    public ?int   $editingTeamId   = null;
-    public string $editTeamName    = '';
-    public string $editSchoolName  = '';
-    public string $editPlayer1     = '';
-    public string $editPlayer2     = '';
-    public string $editPlayer3     = '';
-    public string $editMentorName  = '';
-    public string $editMentorEmail = '';
-
-    public function mount(): void
-    {
-        $this->isLocked = session('attendance_locked', false);
-    }
-
-    public function updatedSearch(): void
-    {
-        $this->highlightedId = null;
-    }
-
-    #[Computed]
-    public function results()
-    {
-        if (strlen(trim($this->search)) < 2) {
-            return collect();
-        }
-
-        $query = Team::with('category')
-            ->where(function ($q) {
-                $q->where('team_name', 'like', '%' . $this->search . '%')
-                  ->orWhere('school_name', 'like', '%' . $this->search . '%');
-            });
-
-        if ($this->filterGame) {
-            $query->where('game_type', $this->filterGame);
-        }
-
-        if ($this->filterCategory) {
-            $query->whereHas('category', fn($q) => $q->where('slug', $this->filterCategory));
-        }
-
-        return $query->orderBy('team_name')->limit(20)->get();
-    }
-
-    #[Computed]
-    public function categories()
-    {
-        return Category::orderBy('sort_order')->get();
-    }
-
-    public function checkIn(int $teamId): void
-    {
-        if ($this->isLocked) return;
-
-        $team = Team::findOrFail($teamId);
-
-        if ($team->status === 'checked_in') {
-            $this->message     = "⚠️ {$team->team_name} sudah ditanda hadir.";
-            $this->messageType = 'warning';
-            return;
-        }
-
-        $team->update([
-            'status'        => 'checked_in',
-            'checked_in_at' => now(),
-        ]);
-
-        $this->highlightedId = $teamId;
-        $this->message       = "✅ {$team->team_name} berjaya ditanda HADIR.";
-        $this->messageType   = 'success';
-        unset($this->results);
-    }
-
-    public function markAbsent(int $teamId): void
-    {
-        if ($this->isLocked) return;
-
-        $team = Team::findOrFail($teamId);
-        $team->update(['status' => 'absent']);
-
-        $this->message     = "❌ {$team->team_name} ditanda TIDAK HADIR.";
-        $this->messageType = 'error';
-        unset($this->results);
-    }
-
-    public function undoStatus(int $teamId): void
-    {
-        if ($this->isLocked) return;
-
-        $team = Team::findOrFail($teamId);
-        $team->update(['status' => 'registered', 'checked_in_at' => null]);
-
-        $this->message     = "↩️ {$team->team_name} status ditukar semula kepada Berdaftar.";
-        $this->messageType = 'warning';
-        unset($this->results);
-    }
-
-    public function openEdit(int $teamId): void
-    {
-        $team = Team::findOrFail($teamId);
-        $this->editingTeamId   = $team->id;
-        $this->editTeamName    = $team->team_name;
-        $this->editSchoolName  = $team->school_name;
-        $this->editPlayer1     = $team->player_1 ?? '';
-        $this->editPlayer2     = $team->player_2 ?? '';
-        $this->editPlayer3     = $team->player_3 ?? '';
-        $this->editMentorName  = $team->mentor_name ?? '';
-        $this->editMentorEmail = $team->mentor_email ?? '';
-        $this->isEditing       = true;
-    }
-
-    public function closeEdit(): void
-    {
-        $this->isEditing     = false;
-        $this->editingTeamId = null;
-    }
-
-    public function saveTeam(): void
-    {
-        if (!$this->editingTeamId) return;
-
-        $team = Team::findOrFail($this->editingTeamId);
-
-        $this->validate([
-            'editTeamName'   => 'required|string|max:255',
-            'editSchoolName' => 'required|string|max:255',
-            'editPlayer1'    => 'nullable|string|max:255',
-            'editPlayer2'    => 'nullable|string|max:255',
-            'editPlayer3'    => 'nullable|string|max:255',
-            'editMentorName' => 'nullable|string|max:255',
-            'editMentorEmail'=> 'nullable|string|max:255',
-        ]);
-
-        $team->update([
-            'team_name'    => $this->editTeamName,
-            'school_name'  => $this->editSchoolName,
-            'player_1'     => $this->editPlayer1 ?: null,
-            'player_2'     => $this->editPlayer2 ?: null,
-            'player_3'     => $this->editPlayer3 ?: null,
-            'mentor_name'  => $this->editMentorName ?: null,
-            'mentor_email' => $this->editMentorEmail ?: null,
-        ]);
-
-        $this->message       = "✨ Maklumat pasukan {$team->team_name} berjaya dikemaskini!";
-        $this->messageType   = 'success';
-        $this->isEditing     = false;
-        $this->editingTeamId = null;
-        unset($this->results);
-    }
-};
 ?>
 
 <div class="space-y-5 animate-slide-up">
-    @if($message)
+    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($message): ?>
     <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 4000)" x-transition:leave="transition ease-in duration-300" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
-         class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium border animate-fade-in {{ $messageType === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : ($messageType === 'error' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-amber-50 border-amber-200 text-amber-800') }}">
-        <span>{{ $message }}</span>
+         class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium border animate-fade-in <?php echo e($messageType === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : ($messageType === 'error' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-amber-50 border-amber-200 text-amber-800')); ?>">
+        <span><?php echo e($message); ?></span>
     </div>
-    @endif
+    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
-    @if($isLocked)
+    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($isLocked): ?>
     <div class="flex items-center gap-3 bg-red-50 border border-red-200 rounded-2xl px-5 py-3">
         <p class="font-bold text-red-700 text-sm">🔒 Kehadiran Dikunci — Hubungi Master Admin untuk buka kunci.</p>
     </div>
-    @endif
+    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
-    {{-- Search and Filters Box --}}
+    
     <div class="bg-white rounded-2xl border border-base-200 shadow-sm overflow-hidden">
         <div class="px-6 py-4 border-b border-base-200 flex items-center justify-between">
             <h2 class="font-bold text-base-content">Cari & Tandakan Kehadiran</h2>
@@ -205,9 +40,9 @@ new class extends Component
             </select>
             <select wire:model.live="filterCategory" class="border-2 border-base-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-primary bg-white transition-all">
                 <option value="">Semua Kategori</option>
-                @foreach($this->categories as $cat)
-                    <option value="{{ $cat->slug }}">{{ $cat->name }}</option>
-                @endforeach
+                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = $this->categories; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $cat): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoopIteration(); ?><?php endif; ?>
+                    <option value="<?php echo e($cat->slug); ?>"><?php echo e($cat->name); ?></option>
+                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
             </select>
         </div>
     </div>
@@ -217,95 +52,96 @@ new class extends Component
         Mencari pasukan...
     </div>
 
-    {{-- Search Results --}}
-    @if(strlen(trim($search)) >= 2)
-        @if($this->results->isEmpty())
+    
+    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(strlen(trim($search)) >= 2): ?>
+        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($this->results->isEmpty()): ?>
             <div class="bg-blue-50 border border-blue-100 rounded-2xl px-5 py-4 text-sm text-blue-700">
-                Tiada pasukan dijumpai untuk carian "<strong>{{ $search }}</strong>"
+                Tiada pasukan dijumpai untuk carian "<strong><?php echo e($search); ?></strong>"
             </div>
-        @else
+        <?php else: ?>
             <div class="space-y-3">
-                @foreach($this->results as $team)
-                <div wire:key="team-{{ $team->id }}"
+                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = $this->results; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $team): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoopIteration(); ?><?php endif; ?>
+                <div <?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::$currentLoop['key'] = 'team-'.e($team->id).''; ?>wire:key="team-<?php echo e($team->id); ?>"
                      class="bg-white rounded-2xl border-2 shadow-sm transition-all duration-200
-                     {{ $team->status === 'checked_in' ? 'border-emerald-300 bg-emerald-50/30' : ($team->status === 'absent' ? 'border-red-200 bg-red-50/20' : 'border-base-200') }}
-                     {{ $highlightedId === $team->id ? 'ring-4 ring-emerald-400 ring-offset-2' : '' }}">
+                     <?php echo e($team->status === 'checked_in' ? 'border-emerald-300 bg-emerald-50/30' : ($team->status === 'absent' ? 'border-red-200 bg-red-50/20' : 'border-base-200')); ?>
+
+                     <?php echo e($highlightedId === $team->id ? 'ring-4 ring-emerald-400 ring-offset-2' : ''); ?>">
                     <div class="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div class="flex-1">
                             <div class="flex items-center gap-2 flex-wrap">
-                                <h3 class="font-bold text-base text-base-content">{{ $team->team_name }}</h3>
-                                <span class="text-xs font-semibold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full">{{ $team->game_type_label }}</span>
-                                <span class="text-xs font-medium bg-base-200 text-base-content/60 px-2 py-0.5 rounded-full">{{ $team->category->name }}</span>
-                                @if($team->status === 'checked_in') <span class="status-badge-present">● Hadir</span>
-                                @elseif($team->status === 'absent') <span class="status-badge-absent">● Tidak Hadir</span>
-                                @else <span class="status-badge-pending">● Berdaftar</span>
-                                @endif
+                                <h3 class="font-bold text-base text-base-content"><?php echo e($team->team_name); ?></h3>
+                                <span class="text-xs font-semibold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full"><?php echo e($team->game_type_label); ?></span>
+                                <span class="text-xs font-medium bg-base-200 text-base-content/60 px-2 py-0.5 rounded-full"><?php echo e($team->category->name); ?></span>
+                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($team->status === 'checked_in'): ?> <span class="status-badge-present">● Hadir</span>
+                                <?php elseif($team->status === 'absent'): ?> <span class="status-badge-absent">● Tidak Hadir</span>
+                                <?php else: ?> <span class="status-badge-pending">● Berdaftar</span>
+                                <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                             </div>
-                            <p class="text-xs text-base-content/60 mt-1 font-medium">🏫 {{ $team->school_name }}</p>
+                            <p class="text-xs text-base-content/60 mt-1 font-medium">🏫 <?php echo e($team->school_name); ?></p>
                             
-                            {{-- Players preview --}}
+                            
                             <div class="flex items-center gap-3 mt-2 text-xs text-base-content/70 flex-wrap">
                                 <span class="font-semibold text-base-content/40 uppercase tracking-wider text-[10px]">Pemain:</span>
-                                @if($team->player_1) <span><strong>1.</strong> {{ $team->player_1 }}</span> @endif
-                                @if($team->player_2) <span><strong>2.</strong> {{ $team->player_2 }}</span> @endif
-                                @if($team->player_3) <span class="text-base-content/50"><strong>3.</strong> {{ $team->player_3 }} (Rizab)</span> @endif
+                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($team->player_1): ?> <span><strong>1.</strong> <?php echo e($team->player_1); ?></span> <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($team->player_2): ?> <span><strong>2.</strong> <?php echo e($team->player_2); ?></span> <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($team->player_3): ?> <span class="text-base-content/50"><strong>3.</strong> <?php echo e($team->player_3); ?> (Rizab)</span> <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                             </div>
 
-                            @if($team->checked_in_at)
-                                <p class="text-xs text-emerald-600 mt-2 font-medium">✓ Ditanda hadir pada {{ $team->checked_in_at->format('h:i A') }}</p>
-                            @endif
+                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($team->checked_in_at): ?>
+                                <p class="text-xs text-emerald-600 mt-2 font-medium">✓ Ditanda hadir pada <?php echo e($team->checked_in_at->format('h:i A')); ?></p>
+                            <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                         </div>
 
-                        {{-- Action Buttons --}}
+                        
                         <div class="flex gap-2 flex-wrap items-center shrink-0">
-                            {{-- Fast Edit Button (Instant Tukar Pemain / Pasukan) --}}
-                            <button wire:click="openEdit({{ $team->id }})" 
+                            
+                            <button wire:click="openEdit(<?php echo e($team->id); ?>)" 
                                     title="Tukar nama pasukan atau nama pemain di kaunter"
                                     class="inline-flex items-center gap-1.5 border border-base-300 hover:border-primary hover:text-primary text-base-content/70 text-xs font-bold px-3.5 py-2 rounded-xl transition-all hover:bg-primary/5">
                                 ✏️ Tukar Pemain
                             </button>
 
-                            @if(!$isLocked)
-                                @if($team->status !== 'checked_in')
-                                    <button wire:click="checkIn({{ $team->id }})" wire:loading.attr="disabled"
+                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(!$isLocked): ?>
+                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($team->status !== 'checked_in'): ?>
+                                    <button wire:click="checkIn(<?php echo e($team->id); ?>)" wire:loading.attr="disabled"
                                             class="inline-flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-sm transition-colors">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                                         Tandakan Hadir
                                     </button>
-                                @endif
-                                @if($team->status !== 'absent')
-                                    <button wire:click="markAbsent({{ $team->id }})" wire:loading.attr="disabled"
+                                <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($team->status !== 'absent'): ?>
+                                    <button wire:click="markAbsent(<?php echo e($team->id); ?>)" wire:loading.attr="disabled"
                                             class="inline-flex items-center gap-1.5 border-2 border-red-200 text-red-500 hover:bg-red-50 text-xs font-bold px-3.5 py-2 rounded-xl transition-colors">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                                         Tidak Hadir
                                     </button>
-                                @endif
-                                @if($team->status !== 'registered')
-                                    <button wire:click="undoStatus({{ $team->id }})" wire:confirm="Anda pasti mahu tukar semula status pasukan ini?"
+                                <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($team->status !== 'registered'): ?>
+                                    <button wire:click="undoStatus(<?php echo e($team->id); ?>)" wire:confirm="Anda pasti mahu tukar semula status pasukan ini?"
                                             class="text-xs font-medium text-base-content/40 hover:text-base-content px-2.5 py-2 rounded-xl hover:bg-base-200 transition-colors">
                                         ↩ Undo
                                     </button>
-                                @endif
-                            @endif
+                                <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                            <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                         </div>
                     </div>
                 </div>
-                @endforeach
+                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
             </div>
-        @endif
-    @else
+        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+    <?php else: ?>
         <div class="flex flex-col items-center gap-4 py-16 text-base-content/30">
             <div class="w-20 h-20 bg-base-200 rounded-3xl flex items-center justify-center">
                 <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
             </div>
             <p class="text-base font-medium">Taip sekurang-kurangnya 2 huruf untuk mencari pasukan</p>
         </div>
-    @endif
+    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
-    {{-- ========================================================== --}}
-    {{-- FAST EDIT POPUP MODAL (TUKAR NAMA PASUKAN / PEMAIN)        --}}
-    {{-- ========================================================== --}}
-    @if($isEditing)
+    
+    
+    
+    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($isEditing): ?>
         <div class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
             <div class="bg-white rounded-3xl border border-base-200 shadow-2xl max-w-xl w-full overflow-hidden animate-scale-in">
                 <div class="px-6 py-4 border-b border-base-200 flex items-center justify-between bg-base-100">
@@ -325,17 +161,31 @@ new class extends Component
                             <label class="block text-xs font-bold text-base-content mb-1">Nama Pasukan <span class="text-red-500">*</span></label>
                             <input wire:model="editTeamName" type="text" required
                                    class="w-full px-3.5 py-2 border-2 border-base-300 rounded-xl text-sm font-bold focus:border-primary focus:outline-none" />
-                            @error('editTeamName') <span class="text-xs text-red-500">{{ $message }}</span> @enderror
+                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['editTeamName'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-xs text-red-500"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-base-content mb-1">Nama Sekolah <span class="text-red-500">*</span></label>
                             <input wire:model="editSchoolName" type="text" required
                                    class="w-full px-3.5 py-2 border-2 border-base-300 rounded-xl text-sm focus:border-primary focus:outline-none" />
-                            @error('editSchoolName') <span class="text-xs text-red-500">{{ $message }}</span> @enderror
+                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['editSchoolName'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-xs text-red-500"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                         </div>
                     </div>
 
-                    {{-- Players Section --}}
+                    
                     <div class="bg-base-200/50 rounded-2xl p-4 space-y-3">
                         <p class="text-[11px] font-black uppercase tracking-wider text-base-content/50">Senarai Nama Pemain</p>
                         <div>
@@ -355,7 +205,7 @@ new class extends Component
                         </div>
                     </div>
 
-                    {{-- Mentor Section --}}
+                    
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-xs font-semibold text-base-content mb-1">Nama Guru / Mentor</label>
@@ -383,5 +233,5 @@ new class extends Component
                 </form>
             </div>
         </div>
-    @endif
-</div>
+    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+</div><?php /**PATH C:\laragon\ElviraSdnBhd\Tournament-Management-System\storage\framework\views/livewire/views/0f168572.blade.php ENDPATH**/ ?>

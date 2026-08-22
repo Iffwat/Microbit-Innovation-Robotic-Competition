@@ -116,9 +116,10 @@ new class extends Component {
                             <div class="p-4 border-t border-base-100 mt-auto rounded-b-2xl bg-base-50/50">
                                 <select wire:change="updateField({{ $match->id }}, $event.target.value)" class="w-full bg-white border-2 border-base-200 rounded-xl px-3 py-2.5 text-sm font-bold text-base-content/70 focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all">
                                     <option value="">-- Tetapkan Padang --</option>
-                                    @for($i=1; $i<=10; $i++)
+                                    @for($i=1; $i<=15; $i++)
                                         <option value="{{ $i }}" {{ $match->field_number == $i ? 'selected' : '' }}>Padang {{ $i }}</option>
                                     @endfor
+                                    <option value="Arena Sky Soccer" {{ $match->field_number === 'Arena Sky Soccer' ? 'selected' : '' }}>Arena Sky Soccer</option>
                                 </select>
                             </div>
                         </div>

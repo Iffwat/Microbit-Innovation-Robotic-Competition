@@ -13,9 +13,9 @@
         </div>
         <div class="relative flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
             <div>
-                <p class="text-white/60 text-sm font-medium mb-1">Selamat Datang, Master Admin ??</p>
+                <p class="text-white/60 text-sm font-medium mb-1">Selamat Datang, Master Admin</p>
                 <h1 class="text-2xl md:text-3xl font-extrabold mb-1">Microbit Innovation Robotic</h1>
-                <p class="text-white/70 text-sm">Sistem Pengurusan Pertandingan — {{ now()->format('d F Y') }}</p>
+                <p class="text-white/70 text-sm">Sistem Pengurusan Pertandingan â€¢ {{ now()->format('d F Y') }}</p>
                 <div class="flex gap-2 mt-4 flex-wrap">
                     @if($totalTeams === 0)
                         <a href="{{ route('admin.import.index') }}" class="inline-flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white text-sm font-semibold px-4 py-2 rounded-xl backdrop-blur-sm transition-colors border border-white/20">
@@ -38,65 +38,65 @@
             <div class="shrink-0">
                 <form method="GET" action="{{ route('admin.dashboard') }}">
                     <select name="game_type" onchange="this.form.submit()"
-                            class="select select-sm bg-white/20 text-white border-white/30 backdrop-blur-sm focus:bg-white/30 focus:outline-none rounded-xl">
-                        <option value="" class="text-base-content">Semua Permainan</option>
-                        <option value="isobot" class="text-base-content" {{ isset($gameType) && $gameType === 'isobot' ? 'selected' : '' }}>Isobot Soccer</option>
-                        <option value="sky_soccer" class="text-base-content" {{ isset($gameType) && $gameType === 'sky_soccer' ? 'selected' : '' }}>Drone Sky Soccer</option>
-                        <option value="obstacle" class="text-base-content" {{ isset($gameType) && $gameType === 'obstacle' ? 'selected' : '' }}>Drone Obstacle</option>
+                            class="bg-white/15 backdrop-blur-sm border border-white/25 text-white text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:bg-white/25 transition-all">
+                        <option value="" class="text-base-content" {{ !$gameType ? 'selected' : '' }}>Semua Permainan</option>
+                        <option value="isobot" class="text-base-content" {{ $gameType === 'isobot' ? 'selected' : '' }}>Isobot Soccer</option>
+                        <option value="sky_soccer" class="text-base-content" {{ $gameType === 'sky_soccer' ? 'selected' : '' }}>Drone Sky Soccer</option>
+                        <option value="obstacle" class="text-base-content" {{ $gameType === 'obstacle' ? 'selected' : '' }}>Drone Obstacle</option>
                     </select>
                 </form>
             </div>
         </div>
     </div>
 
-    {{-- Stats Grid --}}
+    {{-- Stats Cards --}}
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div class="bg-white rounded-2xl p-5 border border-base-200 shadow-sm hover:shadow-md transition-shadow">
-            <div class="flex items-start justify-between mb-3">
+        <div class="bg-white rounded-2xl p-5 border border-base-200 shadow-sm">
+            <div class="flex items-center justify-between mb-3">
                 <div class="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
                     <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0"/></svg>
                 </div>
-                <span class="text-xs font-medium text-base-content/40 bg-base-200 px-2 py-0.5 rounded-full">Jumlah</span>
+                <span class="text-xs font-semibold text-base-content/40 bg-base-200 px-2 py-0.5 rounded-full">Jumlah</span>
             </div>
             <p class="text-3xl font-extrabold text-base-content">{{ $totalTeams }}</p>
             <p class="text-xs text-base-content/50 mt-1 font-medium">Pasukan Didaftar</p>
         </div>
 
-        <div class="bg-white rounded-2xl p-5 border border-emerald-100 shadow-sm hover:shadow-md transition-shadow">
-            <div class="flex items-start justify-between mb-3">
+        <div class="bg-white rounded-2xl p-5 border border-emerald-100 shadow-sm">
+            <div class="flex items-center justify-between mb-3">
                 <div class="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center">
                     <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                 </div>
-                <span class="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">{{ $totalTeams > 0 ? round(($totalCheckedIn / $totalTeams) * 100) : 0 }}%</span>
+                <span class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">{{ $totalTeams > 0 ? round(($totalCheckedIn / $totalTeams) * 100) : 0 }}%</span>
             </div>
             <p class="text-3xl font-extrabold text-emerald-600">{{ $totalCheckedIn }}</p>
             <p class="text-xs text-emerald-600/60 mt-1 font-medium">Hadir</p>
         </div>
 
-        <div class="bg-white rounded-2xl p-5 border border-red-100 shadow-sm hover:shadow-md transition-shadow">
-            <div class="flex items-start justify-between mb-3">
+        <div class="bg-white rounded-2xl p-5 border border-red-100 shadow-sm">
+            <div class="flex items-center justify-between mb-3">
                 <div class="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center">
                     <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                 </div>
-                <span class="text-xs font-semibold text-red-500 bg-red-50 px-2 py-0.5 rounded-full">{{ $totalTeams > 0 ? round(($totalAbsent / $totalTeams) * 100) : 0 }}%</span>
+                <span class="text-xs font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-full">{{ $totalTeams > 0 ? round(($totalAbsent / $totalTeams) * 100) : 0 }}%</span>
             </div>
             <p class="text-3xl font-extrabold text-red-500">{{ $totalAbsent }}</p>
             <p class="text-xs text-red-500/60 mt-1 font-medium">Tidak Hadir</p>
         </div>
 
-        <div class="bg-white rounded-2xl p-5 border border-amber-100 shadow-sm hover:shadow-md transition-shadow">
-            <div class="flex items-start justify-between mb-3">
+        <div class="bg-white rounded-2xl p-5 border border-amber-100 shadow-sm">
+            <div class="flex items-center justify-between mb-3">
                 <div class="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center">
                     <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 </div>
-                <span class="text-xs font-semibold text-amber-500 bg-amber-50 px-2 py-0.5 rounded-full">{{ $totalTeams > 0 ? round(($totalRegistered / $totalTeams) * 100) : 0 }}%</span>
+                <span class="text-xs font-bold text-amber-500 bg-amber-50 px-2 py-0.5 rounded-full">{{ $totalTeams > 0 ? round(($totalRegistered / $totalTeams) * 100) : 0 }}%</span>
             </div>
             <p class="text-3xl font-extrabold text-amber-500">{{ $totalRegistered }}</p>
             <p class="text-xs text-amber-500/60 mt-1 font-medium">Belum Ditanda</p>
         </div>
     </div>
 
-    {{-- Category Breakdown --}}
+    {{-- Category Breakdown Table --}}
     <div class="bg-white rounded-2xl border border-base-200 shadow-sm overflow-hidden">
         <div class="px-6 py-4 border-b border-base-200 flex items-center gap-3">
             <div class="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
@@ -133,7 +133,7 @@
                             <span class="status-badge-absent">{{ $cat->absent_count }}</span>
                         </td>
                         <td class="px-3 py-4 text-center">
-                            <span class="status-badge-pending">{{ $cat->registered_count }}</span>
+                            <span class="status-badge-pending">{{ $cat->pending_count }}</span>
                         </td>
                         <td class="px-6 py-4">
                             <div class="flex items-center gap-2">
@@ -152,7 +152,7 @@
                                     <svg class="w-8 h-8 text-base-content/30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
                                 </div>
                                 <p class="font-medium">Tiada data lagi</p>
-                                <a href="{{ route('admin.import.index') }}" class="text-primary text-sm font-semibold hover:underline">Import CSV untuk bermula ?</a>
+                                <a href="{{ route('admin.import.index') }}" class="text-primary text-sm font-semibold hover:underline">Import CSV untuk bermula</a>
                             </div>
                         </td>
                     </tr>

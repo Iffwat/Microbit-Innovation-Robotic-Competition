@@ -55,7 +55,12 @@ class Category extends Model
     // Stats
     public function getRegisteredCountAttribute(): int
     {
-        return $this->teams()->count();
+        return $this->teams()->where('status', 'registered')->count();
+    }
+
+    public function getPendingCountAttribute(): int
+    {
+        return $this->teams()->where('status', 'registered')->count();
     }
 
     public function getCheckedInCountAttribute(): int

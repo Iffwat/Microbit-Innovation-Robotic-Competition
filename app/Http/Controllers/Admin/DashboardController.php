@@ -28,6 +28,10 @@ class DashboardController extends Controller
                 $q->where('status', 'registered');
                 if ($gameType) $q->where('game_type', $gameType);
             },
+            'teams as pending_count' => function ($q) use ($gameType) {
+                $q->where('status', 'registered');
+                if ($gameType) $q->where('game_type', $gameType);
+            },
         ])->orderBy('sort_order')->get();
 
         $teamQuery = Team::query();
