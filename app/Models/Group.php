@@ -41,16 +41,25 @@ class Group extends Model
         return $this->hasMany(TournamentMatch::class);
     }
 
-    // Get standings sorted by points, goal_difference, goals_for
+    // Get standings sorted dynamically based on game type
     public function getStandings()
     {
-        return $this->groupTeams()
-                    ->with('team')
-                    ->orderByDesc('points')
-                    ->orderByDesc('goal_difference')
-                    ->orderByDesc('goals_for')
-                    ->orderBy('goals_against')
-                    ->get();
+        $query = $this->groupTeams()->with('team');
+        
+        if ($this->game_type === 'obstacle') {
+            // For obstacle, goals_for stores the total time in milliseconds
+            // We want to sort by fastest time ascending, but push 0 (no time recorded yet) to the bottom
+            return $query->orderByRaw('CASE WHEN goals_for > 0 THEN 0 ELSE 1 END')
+                         ->orderBy('goals_for', 'asc')
+                         ->get();
+        }
+
+        // For soccer, sort by points, goal difference, goals scored
+        return $query->orderByDesc('points')
+                     ->orderByDesc('goal_difference')
+                     ->orderByDesc('goals_for')
+                     ->orderBy('goals_against')
+                     ->get();
     }
 
     public function getTotalMatchesAttribute(): int

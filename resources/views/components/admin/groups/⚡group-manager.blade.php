@@ -92,13 +92,26 @@ new class extends Component
             $groupsArray = array_fill(0, $numGroups, []);
 
             for ($i = 0; $i < $numGroups; $i++) {
+                $autoField = null;
+                
+                if ($this->activeTab === 'sky_soccer') {
+                    $autoField = 'Arena Sky Soccer'; // Sky Soccer only 1 field
+                } elseif ($this->activeTab === 'isobot') {
+                    if ($category->slug === 'u12') {
+                        $autoField = (string)(($i % 8) + 1); // Padang 1 to 8
+                    } else {
+                        $autoField = (string)(($i % 2) + 9); // Padang 9 to 10
+                    }
+                } elseif ($this->activeTab === 'obstacle') {
+                    $autoField = 'Course ' . (($i % 2) + 1); // Course 1 & 2
+                }
                 if ($isObstacle) {
                     $groups[] = Group::create([
                         'category_id' => $category->id,
                         'game_type'   => $this->activeTab,
                         'group_name'  => 'Course ' . ($i + 1),
                         'group_letter'=> (string)($i + 1),
-                        'field_number'=> null,
+                        'field_number'=> $autoField,
                     ]);
                 } else {
                     $letter   = $letters[$i % 26];
@@ -107,7 +120,7 @@ new class extends Component
                         'game_type'   => $this->activeTab,
                         'group_name'  => 'Kumpulan ' . $letter,
                         'group_letter'=> $letter,
-                        'field_number'=> null,
+                        'field_number'=> $autoField,
                     ]);
                 }
             }
@@ -176,6 +189,8 @@ new class extends Component
             $existingGroupIds = Group::where('category_id', $category->id)
                 ->where('game_type', $this->activeTab)
                 ->pluck('id');
+                
+            \App\Models\TournamentMatch::whereIn('group_id', $existingGroupIds)->delete();
             GroupTeam::whereIn('group_id', $existingGroupIds)->delete();
             Group::whereIn('id', $existingGroupIds)->delete();
             DB::commit();

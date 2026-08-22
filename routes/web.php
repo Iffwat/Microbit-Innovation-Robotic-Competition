@@ -26,6 +26,10 @@ Route::get('/semakan', function() {
     return view('pages.semakan');
 })->name('semakan');
 
+Route::get('/live-tv', function() {
+    return view('pages.live-tv');
+})->name('live.tv');
+
 // PIN Login Routes
 Route::prefix('admin')->name('admin.')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
@@ -54,6 +58,10 @@ Route::middleware('pin.auth')->prefix('admin')->name('admin.')->group(function (
     Route::get('/knockout', function () {
         return view('admin.knockout.index');
     })->name('knockout.index');
+
+    Route::get('/knockout/{category}', function (App\Models\Category $category) {
+        return view('admin.knockout.show', compact('category'));
+    })->name('knockout.show');
 
     // -- MASTER ONLY ROUTES --
     Route::middleware('pin.auth:master')->group(function () {

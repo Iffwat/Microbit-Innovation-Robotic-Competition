@@ -12,7 +12,10 @@ class TournamentMatch extends Model
     protected $fillable = [
         'category_id', 'stage', 'group_id', 'round_name', 'bracket_position',
         'home_team_id', 'away_team_id',
-        'home_score', 'away_score', 'winner_team_id',
+        'home_score', 'away_score', 
+        'obstacle_time_ms_1', 'obstacle_penalties_1', 
+        'obstacle_time_ms_2', 'obstacle_penalties_2', 
+        'winner_team_id',
         'status', 'field_number', 'scheduled_time', 'completed_at', 'notes',
     ];
 
@@ -80,20 +83,51 @@ class TournamentMatch extends Model
     public function getScoreDisplayAttribute(): string
     {
         if ($this->home_score === null) return 'vs';
-        return $this->home_score . ' – ' . $this->away_score;
+        return $this->home_score . ' - ' . $this->away_score;
+    }
+
+    public function getFormattedObstacleTimeAttribute(): string
+    {
+        if ($this->home_score === null) return '-';
+        
+        $totalMs = $this->home_score;
+        $minutes = floor($totalMs / 60000);
+        $seconds = floor(($totalMs % 60000) / 1000);
+        $ms = $totalMs % 1000;
+        
+        $timeStr = sprintf('%02d:%02d.%03d', $minutes, $seconds, $ms);
+        
+        if ($this->obstacle_penalties > 0) {
+            $timeStr .= ' (+'.$this->obstacle_penalties.' P)';
+        }
+        
+        return $timeStr;
     }
 
     // Determine winner from scores and update standings
     public function resolveResult(): void
     {
-        if ($this->home_score === null || $this->away_score === null) return;
+        $isObstacle = $this->group && $this->group->game_type === 'obstacle';
+        
+        if (!$isObstacle && ($this->home_score === null || $this->away_score === null)) {
+            return;
+        }
+        
+        if ($isObstacle && $this->home_score === null) {
+            return;
+        }
 
-        if ($this->home_score > $this->away_score) {
-            $this->winner_team_id = $this->home_team_id;
-        } elseif ($this->away_score > $this->home_score) {
-            $this->winner_team_id = $this->away_team_id;
+        if (!$isObstacle) {
+            if ($this->home_score > $this->away_score) {
+                $this->winner_team_id = $this->home_team_id;
+            } elseif ($this->away_score > $this->home_score) {
+                $this->winner_team_id = $this->away_team_id;
+            } else {
+                $this->winner_team_id = null; // Draw
+            }
         } else {
-            $this->winner_team_id = null; // Draw
+            // For obstacle, there is no direct winner_team_id in group stage
+            $this->winner_team_id = null;
         }
 
         $this->status = 'completed';
@@ -110,10 +144,22 @@ class TournamentMatch extends Model
     {
         $homeGT = GroupTeam::where('group_id', $this->group_id)
                            ->where('team_id', $this->home_team_id)->first();
+        
+        if (!$homeGT) return;
+
+        $isObstacle = $this->group && $this->group->game_type === 'obstacle';
+
+        if ($isObstacle) {
+            $homeGT->played++;
+            $homeGT->goals_for = $this->home_score ?? 0; // Store best time here for easy sorting later
+            $homeGT->recalculate();
+            return;
+        }
+
         $awayGT = GroupTeam::where('group_id', $this->group_id)
                            ->where('team_id', $this->away_team_id)->first();
 
-        if (!$homeGT || !$awayGT) return;
+        if (!$awayGT) return;
 
         $homeGT->played++;
         $awayGT->played++;
