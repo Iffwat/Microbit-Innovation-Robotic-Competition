@@ -55,10 +55,44 @@ new class extends Component
             return;
         }
 
-        $totalTeams    = $teams->count();
-        $isObstacle    = $this->activeTab === 'obstacle';
-        $teamsPerGroup = $isObstacle ? ceil($totalTeams / 2) : ($category->teams_per_group ?: 5);
-        $numGroups     = $isObstacle ? 2 : (int) ceil($totalTeams / $teamsPerGroup);
+        $totalTeams = $teams->count();
+        $isObstacle = $this->activeTab === 'obstacle';
+        
+        if ($isObstacle) {
+            $numGroups = 2;
+        } elseif ($category->isRoundRobinOnly() || $category->slug === 'ppki') {
+            // PPKI is pure Round Robin (All teams in 1 Single Group)
+            $numGroups = 1;
+        } else {
+            $defaultPerGroup = $category->teams_per_group ?: 5;
+            $rawGroups = (int) ceil($totalTeams / $defaultPerGroup);
+
+            // Ensure the generated number of groups is ALWAYS EVEN (targeting 4-5 teams per group)
+            if ($totalTeams <= 3) {
+                $numGroups = 1;
+            } elseif ($totalTeams <= 7) {
+                $numGroups = 2;
+            } elseif ($rawGroups % 2 === 0 && $rawGroups >= 2) {
+                $numGroups = $rawGroups;
+            } else {
+                // If rawGroups is odd, compare candidate even group counts (rawGroups - 1 vs rawGroups + 1)
+                $kLower = max(2, $rawGroups - 1);
+                $kUpper = $rawGroups + 1;
+
+                $avgLower = $totalTeams / $kLower;
+                $avgUpper = $totalTeams / $kUpper;
+
+                // We want average group size as close to 4.5 (min 4, max 5) as possible
+                $scoreLower = abs($avgLower - 4.5);
+                $scoreUpper = abs($avgUpper - 4.5);
+
+                if ($scoreUpper <= $scoreLower && ($totalTeams / $kUpper) >= 3.0) {
+                    $numGroups = $kUpper;
+                } else {
+                    $numGroups = $kLower;
+                }
+            }
+        }
 
         // --- School-aware Greedy Distribution Algorithm ---
         // 1. Normalize school names to catch variations (e.g. SK vs Sekolah Kebangsaan)

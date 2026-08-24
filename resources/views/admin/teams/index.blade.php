@@ -56,7 +56,17 @@
                     <h2 class="font-extrabold text-base-content text-base">Senarai Pasukan Berdaftar</h2>
                     <p class="text-xs text-base-content/50">Jumlah: <span class="font-bold text-primary">{{ $teams->total() }}</span> pasukan</p>
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 flex-wrap">
+                    @if($teams->total() > 0)
+                    <form method="POST" action="{{ route('admin.teams.destroy_all') }}" onsubmit="return confirm('AMARAN MUTLAK: Anda pasti mahu MEMADAM SEMUA PASUKAN, KUMPULAN & PERLAWANAN? Tindakan ini tidak boleh diundur!');">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn btn-outline btn-error btn-sm rounded-xl gap-1.5">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                            Padam Semua
+                        </button>
+                    </form>
+                    @endif
                     <a href="{{ route('admin.teams.create') }}" class="btn btn-primary btn-sm rounded-xl gap-1.5 shadow-sm">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                         Tambah Pasukan

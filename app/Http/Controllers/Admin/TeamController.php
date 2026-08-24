@@ -122,4 +122,22 @@ class TeamController extends Controller
         return redirect()->route('admin.teams.index')
             ->with('success', "Pasukan {$name} berjaya dipadam.");
     }
+
+    public function destroyAll()
+    {
+        \Illuminate\Support\Facades\DB::beginTransaction();
+        try {
+            \App\Models\TournamentMatch::truncate();
+            \App\Models\GroupTeam::truncate();
+            \App\Models\Group::truncate();
+            Team::truncate();
+            \Illuminate\Support\Facades\DB::commit();
+
+            return redirect()->route('admin.teams.index')
+                ->with('success', 'Semua rekod pasukan, kumpulan, dan perlawanan telah berjaya dipadam.');
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            return back()->with('error', 'Ralat semasa memadam: ' . $e->getMessage());
+        }
+    }
 }

@@ -111,6 +111,37 @@ new class extends Component
             $this->js("alert('Ralat: {$e->getMessage()}');");
         }
     }
+
+    public function deleteFixtures()
+    {
+        \Illuminate\Support\Facades\DB::beginTransaction();
+        try {
+            \App\Models\TournamentMatch::where('category_id', $this->category->id)
+                ->whereHas('group', function($q) {
+                    $q->where('game_type', $this->gameType);
+                })
+                ->where('stage', 'group')
+                ->delete();
+
+            $groupIds = $this->groups->pluck('id');
+            \App\Models\GroupTeam::whereIn('group_id', $groupIds)->update([
+                'played' => 0,
+                'won' => 0,
+                'drawn' => 0,
+                'lost' => 0,
+                'goals_for' => 0,
+                'goals_against' => 0,
+                'goal_difference' => 0,
+                'points' => 0,
+            ]);
+
+            \Illuminate\Support\Facades\DB::commit();
+            $this->js("alert('Jadual perlawanan dan statistik kumpulan telah berjaya dipadam.');");
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            $this->js("alert('Ralat: {$e->getMessage()}');");
+        }
+    }
 };
 ?>
 
@@ -137,7 +168,7 @@ new class extends Component
             </div>
         </div>
         
-        <div class="flex gap-2">
+        <div class="flex items-center gap-2">
             @if(!$isObstacle)
             <button wire:click="generateFixtures" 
                     wire:confirm="Sistem akan menjana padanan Round-Robin untuk semua kumpulan dalam kategori ini. Teruskan?"
@@ -161,6 +192,14 @@ new class extends Component
                 <span wire:loading wire:target="generateFixtures">Menjana...</span>
             </button>
             @endif
+
+            <button wire:click="deleteFixtures" 
+                    wire:confirm="AMARAN: Anda pasti mahu memadam semua jadual perlawanan dan mengosongkan statistik kumpulan ini?"
+                    wire:loading.attr="disabled"
+                    class="bg-white border-2 border-red-200 text-red-500 hover:bg-red-50 text-sm font-bold py-2.5 px-4 rounded-xl transition-colors flex items-center gap-2 shadow-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                Padam Jadual
+            </button>
         </div>
     </div>
 

@@ -416,13 +416,21 @@ new class extends Component {
                                                         <span class="font-bold text-base-content/30 text-xs">-</span>
                                                     @endif
                                                 @else
-                                                    <div class="flex gap-3 items-center">
-                                                        <div class="text-center w-6">
-                                                            <span class="block text-[8px] font-bold text-base-content/40 uppercase">Main</span>
-                                                            <span class="text-xs font-bold">{{ $gt->played }}</span>
+                                                    <div class="grid grid-cols-4 gap-1 min-w-[155px] text-center items-center">
+                                                        <div class="text-center">
+                                                            <span class="block text-[8px] font-bold text-base-content/40 uppercase whitespace-nowrap">Main</span>
+                                                            <span class="text-xs font-bold text-base-content/80">{{ $gt->played }}</span>
                                                         </div>
-                                                        <div class="text-center w-8 bg-base-100 rounded">
-                                                            <span class="block text-[8px] font-bold text-base-content/40 uppercase">Mata</span>
+                                                        <div class="text-center">
+                                                            <span class="block text-[8px] font-bold text-base-content/40 uppercase whitespace-nowrap">Gol</span>
+                                                            <span class="text-xs font-black text-amber-600">{{ $gt->goals_for }}</span>
+                                                        </div>
+                                                        <div class="text-center">
+                                                            <span class="block text-[8px] font-bold text-base-content/40 uppercase whitespace-nowrap">Menang</span>
+                                                            <span class="text-xs font-bold text-emerald-600">{{ $gt->won }}</span>
+                                                        </div>
+                                                        <div class="text-center bg-base-100 rounded py-0.5 px-1">
+                                                            <span class="block text-[8px] font-bold text-base-content/40 uppercase whitespace-nowrap">Mata</span>
                                                             <span class="text-sm font-black text-primary">{{ $gt->points }}</span>
                                                         </div>
                                                     </div>

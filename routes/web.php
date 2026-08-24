@@ -81,6 +81,7 @@ Route::middleware('pin.auth')->prefix('admin')->name('admin.')->group(function (
         Route::get('/pasukan/{team}/kemaskini', [TeamController::class, 'edit'])->name('teams.edit');
         Route::put('/pasukan/{team}', [TeamController::class, 'update'])->name('teams.update');
         Route::delete('/pasukan/{team}', [TeamController::class, 'destroy'])->name('teams.destroy');
+        Route::delete('/pasukan-padam-semua', [TeamController::class, 'destroyAll'])->name('teams.destroy_all');
 
         // Groups
         Route::get('/kumpulan', function () {

@@ -54,10 +54,11 @@ class Group extends Model
                          ->get();
         }
 
-        // For soccer, sort by points, goal difference, goals scored
-        return $query->orderByDesc('points')
+        // For soccer, priority order: Total Goals (goals_for) -> Total Wins (won) -> Points -> Goal Difference -> Goals Against
+        return $query->orderByDesc('goals_for')
+                     ->orderByDesc('won')
+                     ->orderByDesc('points')
                      ->orderByDesc('goal_difference')
-                     ->orderByDesc('goals_for')
                      ->orderBy('goals_against')
                      ->get();
     }

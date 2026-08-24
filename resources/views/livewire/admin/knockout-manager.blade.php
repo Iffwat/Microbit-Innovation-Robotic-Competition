@@ -41,11 +41,7 @@ new class extends Component {
 
         $standings = [];
         foreach ($groups as $group) {
-            $standings[$group->group_letter] = GroupTeam::where('group_id', $group->id)
-                ->orderBy('points', 'desc')
-                ->orderByRaw('(goals_for - goals_against) desc')
-                ->orderBy('goals_for', 'desc')
-                ->get();
+            $standings[$group->group_letter] = $group->getStandings();
         }
 
         $groupNames = $groups->pluck('group_letter')->toArray();
@@ -75,6 +71,16 @@ new class extends Component {
         $this->selectedCategory = null;
     }
 
+    public function deleteKnockout($categoryId)
+    {
+        TournamentMatch::where('category_id', $categoryId)
+            ->whereIn('stage', ['trophy_knockout', 'cup_knockout'])
+            ->delete();
+
+        session()->flash('success', 'Carta kalah mati bagi kategori ini telah berjaya dipadam.');
+        $this->selectedCategory = null;
+    }
+
     private function createBracket($categoryId, $stage, $standings, $groupNames, $pos1, $pos2)
     {
         $groupCount = count($groupNames);
@@ -92,95 +98,104 @@ new class extends Component {
         $matchesInStartingRound = $groupCount; // 16 groups = 16 matches (32 teams)
 
         // 2. Generate First Round (With Teams crossed-over)
-        $half = $matchesInStartingRound / 2;
-        
-        // Upper Bracket (Match 1 to Half)
-        for ($i = 0; $i < $half; $i++) {
-            $groupA = $groupNames[$i * 2];
-            $groupB = $groupNames[$i * 2 + 1];
+        $bracketMatches = [];
+        for ($i = 0; $i < $matchesInStartingRound; $i++) {
+            $isEven = ($i % 2 === 0);
+            $pairIndex = $isEven ? $i + 1 : $i - 1;
             
-            $this->createMatch($categoryId, $stage, $startingRound, $i + 1, 
-                $standings[$groupA][$pos1]->team_id ?? null, 
-                $standings[$groupB][$pos2]->team_id ?? null);
+            $homeGroup = $groupNames[$i];
+            $awayGroup = $groupNames[$pairIndex];
+            
+            $homeTeam = isset($standings[$homeGroup][$pos1]) ? $standings[$homeGroup][$pos1]->team_id : null;
+            $awayTeam = isset($standings[$awayGroup][$pos2]) ? $standings[$awayGroup][$pos2]->team_id : null;
+            
+            // Generate match
+            $match = TournamentMatch::create([
+                'category_id' => $categoryId,
+                'stage' => $stage,
+                'round_name' => $startingRound,
+                'bracket_position' => $i + 1,
+                'home_team_id' => $homeTeam,
+                'away_team_id' => $awayTeam,
+                'status' => 'scheduled',
+                'field_number' => ($i % 8) + 1, // Distribute fields
+            ]);
+            
+            $bracketMatches[$i + 1] = $match;
         }
 
-        // Lower Bracket (Match Half+1 to Full)
-        for ($i = 0; $i < $half; $i++) {
-            $groupA = $groupNames[$i * 2 + 1];
-            $groupB = $groupNames[$i * 2];
+        // 3. Generate Subsequent Placeholder Rounds
+        $currentMatchesCount = $matchesInStartingRound;
+        for ($r = 1; $r < count($rounds) - 1; $r++) { // Stop before 3rd place
+            $roundName = $rounds[$r];
+            $currentMatchesCount = $currentMatchesCount / 2;
             
-            $this->createMatch($categoryId, $stage, $startingRound, $half + $i + 1, 
-                $standings[$groupA][$pos1]->team_id ?? null, 
-                $standings[$groupB][$pos2]->team_id ?? null);
-        }
-
-        // 3. Pre-create empty placeholder matches for subsequent rounds
-        $subsequentRounds = array_slice($rounds, 1);
-        foreach ($subsequentRounds as $rName) {
-            $matchesInRound = match($rName) {
-                'Pusingan ke-16' => 8,
-                'Suku Akhir' => 4,
-                'Separuh Akhir' => 2,
-                'Akhir' => 1,
-                'Penentuan Tempat Ke-3' => 1,
-            };
-
-            for ($j = 1; $j <= $matchesInRound; $j++) {
-                $this->createMatch($categoryId, $stage, $rName, $j, null, null);
+            for ($m = 0; $m < $currentMatchesCount; $m++) {
+                TournamentMatch::create([
+                    'category_id' => $categoryId,
+                    'stage' => $stage,
+                    'round_name' => $roundName,
+                    'bracket_position' => $m + 1,
+                    'home_team_id' => null, // Placeholder
+                    'away_team_id' => null, // Placeholder
+                    'status' => 'scheduled',
+                    'field_number' => ($m % 4) + 1,
+                ]);
             }
         }
-    }
 
-    private function createMatch($categoryId, $stage, $roundName, $bracketPos, $homeTeamId, $awayTeamId)
-    {
+        // 4. Generate 3rd Place Match
         TournamentMatch::create([
             'category_id' => $categoryId,
             'stage' => $stage,
-            'round_name' => $roundName,
-            'bracket_position' => $bracketPos,
-            'home_team_id' => $homeTeamId,
-            'away_team_id' => $awayTeamId,
-            'status' => 'scheduled'
+            'round_name' => 'Penentuan Tempat Ke-3',
+            'bracket_position' => 1,
+            'home_team_id' => null,
+            'away_team_id' => null,
+            'status' => 'scheduled',
+            'field_number' => 2,
         ]);
     }
 };
 ?>
 
-<div class="space-y-6">
+<div class="space-y-6 animate-slide-up">
     <!-- Header -->
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white border border-base-200 rounded-3xl p-6 shadow-sm">
         <div>
-            <h2 class="text-2xl font-bold">Penjana Pusingan Kalah Mati (Knockout)</h2>
-            <p class="text-base-content/60 mt-1">Jana jadual kalah mati secara automatik berdasarkan kedudukan peringkat kumpulan bersilang (FIFA Standard).</p>
+            <h1 class="text-2xl font-black text-base-content">🏆 Pengurusan Kalah Mati</h1>
+            <p class="text-sm text-base-content/60 mt-1">Jana dan pantau carta pusingan kalah mati (Knockout Brackets) selepas tamat peringkat kumpulan.</p>
         </div>
     </div>
 
-    <!-- Alert -->
+    <!-- Notifications -->
     @if(session('success'))
-        <div class="flex items-center gap-3 bg-emerald-50 border border-emerald-200 text-emerald-800 px-5 py-4 rounded-2xl shadow-sm">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            <span class="font-medium text-sm">{{ session('success') }}</span>
-        </div>
-    @endif
-    @if(session('error'))
-        <div class="flex items-center gap-3 bg-red-50 border border-red-200 text-red-800 px-5 py-4 rounded-2xl shadow-sm">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            <span class="font-medium text-sm">{{ session('error') }}</span>
+        <div class="bg-emerald-50 border border-emerald-200 text-emerald-800 px-5 py-4 rounded-2xl flex items-center gap-3">
+            <svg class="w-5 h-5 text-emerald-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+            <span class="font-bold text-sm">{{ session('success') }}</span>
         </div>
     @endif
 
+    @if(session('error'))
+        <div class="bg-red-50 border border-red-200 text-red-800 px-5 py-4 rounded-2xl flex items-center gap-3">
+            <svg class="w-5 h-5 text-red-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            <span class="font-bold text-sm">{{ session('error') }}</span>
+        </div>
+    @endif
+
+    <!-- Category Cards -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         @foreach($categories as $category)
             @php
-                $groups = \App\Models\Group::where('category_id', $category->id)->where('game_type', '!=', 'obstacle')->get();
-                $hasGroups = $groups->count() > 0;
                 $hasKnockouts = \App\Models\TournamentMatch::where('category_id', $category->id)->whereIn('stage', ['trophy_knockout', 'cup_knockout'])->exists();
+                $groups = \App\Models\Group::where('category_id', $category->id)->where('game_type', '!=', 'obstacle')->get();
+                $hasGroups = $groups->isNotEmpty();
             @endphp
-            <div class="bg-white rounded-3xl border-2 {{ $hasKnockouts ? 'border-primary shadow-primary/10' : 'border-base-200 shadow-sm' }} overflow-hidden flex flex-col">
-                <div class="p-6 flex-1">
-                    <div class="flex items-center gap-3 mb-3">
-                        <div class="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                            <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+            <div class="bg-white rounded-3xl border border-base-200 shadow-sm overflow-hidden flex flex-col justify-between hover:border-primary/50 transition-all">
+                <div class="p-6">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-black">
+                            {{ substr($category->name, 0, 1) }}
                         </div>
                         <h3 class="font-bold text-lg text-base-content">{{ $category->name }}</h3>
                     </div>
@@ -214,8 +229,13 @@ new class extends Component {
                                 Lihat Carta
                             </a>
                             @if(session('auth_role') === 'master')
-                            <button wire:click="selectCategory({{ $category->id }})" class="px-3 bg-base-200 hover:bg-red-100 hover:text-red-600 text-base-content/60 font-bold rounded-xl transition-colors text-sm" title="Jana Semula">
+                            <button wire:click="selectCategory({{ $category->id }})" class="px-3 bg-base-200 hover:bg-primary/10 hover:text-primary text-base-content/60 font-bold rounded-xl transition-colors text-sm" title="Jana Semula">
                                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                            </button>
+                            <button wire:click="deleteKnockout({{ $category->id }})" 
+                                    wire:confirm="AMARAN: Anda pasti mahu MEMADAM seluruh carta kalah mati untuk {{ $category->name }}?"
+                                    class="px-3 bg-base-200 hover:bg-red-100 hover:text-red-600 text-base-content/60 font-bold rounded-xl transition-colors text-sm" title="Padam Kalah Mati">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                             </button>
                             @endif
                         </div>
@@ -270,6 +290,15 @@ new class extends Component {
                             <span>Jana Trofi & Piala (Khas U12)</span>
                             <span class="text-xs font-medium text-white/70">(Trofi: Top 2 | Piala: Tempat 3 & 4)</span>
                         </button>
+
+                        @if($hasKnockouts)
+                        <button wire:click="deleteKnockout({{ $cat->id }})" 
+                                wire:confirm="AMARAN: Anda pasti mahu MEMADAM seluruh carta kalah mati untuk {{ $cat->name }}?"
+                                class="w-full bg-white border-2 border-red-200 text-red-600 hover:bg-red-50 font-bold py-3 rounded-2xl transition-all flex items-center justify-center gap-2 text-sm">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                            <span>Padam Carta Kalah Mati Sedia Ada</span>
+                        </button>
+                        @endif
                     </div>
                 </div>
 

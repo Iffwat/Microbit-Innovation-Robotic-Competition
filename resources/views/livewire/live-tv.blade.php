@@ -181,34 +181,52 @@ new class extends Component {
                     $fourthId = ($thirdId == $thirdMatch->home_team_id) ? $thirdMatch->away_team_id : $thirdMatch->home_team_id;
                 }
 
-                // 5th Place: Best QF Loser with highest goals scored in Quarter-Finals
+                // 5th Place: Best QF Loser with highest cumulative goals scored across all knockout matches
                 $qfMatches = $matchesInStage->filter(fn($m) => in_array($m->round_name, ['Suku Akhir', 'Quarter Final']));
                 $qfLosers = [];
 
                 foreach ($qfMatches as $m) {
                     if ($m->status === 'completed' && $m->winner_team_id) {
                         $loserId = ($m->winner_team_id == $m->home_team_id) ? $m->away_team_id : $m->home_team_id;
-                        $loserGoals = ($loserId == $m->home_team_id) ? (int)$m->home_score : (int)$m->away_score;
-                        $winnerGoals = ($loserId == $m->home_team_id) ? (int)$m->away_score : (int)$m->home_score;
-                        $goalDiff = $loserGoals - $winnerGoals;
+                        
+                        // Cumulative knockout matches for this loser in this stage
+                        $loserMatches = $matchesInStage->filter(function($match) use ($loserId) {
+                            return $match->status === 'completed' && ($match->home_team_id == $loserId || $match->away_team_id == $loserId);
+                        });
+
+                        $totalGoals = 0;
+                        $totalConceded = 0;
+
+                        foreach ($loserMatches as $lm) {
+                            if ($lm->home_team_id == $loserId) {
+                                $totalGoals += (int)($lm->home_score ?? 0);
+                                $totalConceded += (int)($lm->away_score ?? 0);
+                            } elseif ($lm->away_team_id == $loserId) {
+                                $totalGoals += (int)($lm->away_score ?? 0);
+                                $totalConceded += (int)($lm->home_score ?? 0);
+                            }
+                        }
+
+                        $totalGoalDiff = $totalGoals - $totalConceded;
 
                         $qfLosers[] = [
-                            'team_id'   => $loserId,
-                            'goals'     => $loserGoals,
-                            'goal_diff' => $goalDiff,
+                            'team_id'         => $loserId,
+                            'total_goals'     => $totalGoals,
+                            'total_goal_diff' => $totalGoalDiff,
+                            'matches_count'   => $loserMatches->count(),
                         ];
                     }
                 }
 
                 usort($qfLosers, function($a, $b) {
-                    if ($b['goals'] !== $a['goals']) {
-                        return $b['goals'] <=> $a['goals']; // Highest goals first
+                    if ($b['total_goals'] !== $a['total_goals']) {
+                        return $b['total_goals'] <=> $a['total_goals']; // Highest cumulative goals first
                     }
-                    return $b['goal_diff'] <=> $a['goal_diff']; // Best goal difference
+                    return $b['total_goal_diff'] <=> $a['total_goal_diff']; // Best goal difference
                 });
 
                 $fifthId = !empty($qfLosers) ? $qfLosers[0]['team_id'] : null;
-                $fifthGoals = !empty($qfLosers) ? $qfLosers[0]['goals'] : null;
+                $fifthGoals = !empty($qfLosers) ? $qfLosers[0]['total_goals'] : null;
 
                 $allTeamsMap = Team::whereIn('id', array_filter([$firstId, $secondId, $thirdId, $fourthId, $fifthId]))->get()->keyBy('id');
 
@@ -412,7 +430,7 @@ new class extends Component {
                                                     <p class="text-[10px] text-white/50 mt-0.5 truncate uppercase font-bold">{{ $match->homeTeam->school_name ?? '' }}</p>
                                                 </div>
                                                 <span class="text-[10px] font-black text-emerald-400 bg-emerald-500/20 px-2.5 py-1 rounded-lg border border-emerald-500/30 shrink-0 uppercase tracking-wider">
-                                                    Berlari
+                                                    Sedang Berlumba
                                                 </span>
                                             </div>
                                         @else
@@ -653,7 +671,7 @@ new class extends Component {
                                                     @if($timeStr)
                                                         <span class="font-mono font-black text-xl text-emerald-400 tabular-nums">{{ $timeStr }}</span>
                                                     @else
-                                                        <span class="text-xs font-black text-white/20 uppercase tracking-widest">BELUM BERLARI</span>
+                                                        <span class="text-xs font-black text-white/20 uppercase tracking-widest">BELUM BERLUMBA</span>
                                                     @endif
                                                 </td>
                                             </tr>
@@ -687,6 +705,7 @@ new class extends Component {
                                                         <th class="py-2.5 px-2 text-center text-[10px] font-black text-white/40 tracking-widest">M</th>
                                                         <th class="py-2.5 px-2 text-center text-[10px] font-black text-white/40 tracking-widest">S</th>
                                                         <th class="py-2.5 px-2 text-center text-[10px] font-black text-white/40 tracking-widest">K</th>
+                                                        <th class="py-2.5 px-2 text-center text-[10px] font-black text-yellow-400/80 tracking-widest">GOL</th>
                                                         <th class="py-2.5 px-2 text-center text-[10px] font-black text-white/40 tracking-widest">+/-</th>
                                                         <th class="py-2.5 px-4 text-center text-[10px] font-black text-primary tracking-widest">MATA</th>
                                                     </tr>
@@ -704,6 +723,7 @@ new class extends Component {
                                                             <td class="py-3 px-2 text-center text-xs text-emerald-400 font-bold">{{ $gt->won }}</td>
                                                             <td class="py-3 px-2 text-center text-xs text-white/40 font-bold">{{ $gt->drawn }}</td>
                                                             <td class="py-3 px-2 text-center text-xs text-red-400 font-bold">{{ $gt->lost }}</td>
+                                                            <td class="py-3 px-2 text-center text-xs text-yellow-300 font-black tabular-nums">{{ $gt->goals_for }}</td>
                                                             <td class="py-3 px-2 text-center text-xs font-black {{ $gt->goal_difference > 0 ? 'text-emerald-400' : ($gt->goal_difference < 0 ? 'text-red-400' : 'text-white/40') }}">
                                                                 {{ $gt->goal_difference > 0 ? '+'.$gt->goal_difference : $gt->goal_difference }}
                                                             </td>
@@ -1191,7 +1211,7 @@ new class extends Component {
                                                         <span class="text-[8px] font-black text-emerald-400 uppercase tracking-widest leading-tight">TEMPAT KE-5</span>
                                                         @if($rankings['fifth_goals'] !== null)
                                                             <span class="text-[7px] font-black text-emerald-300 bg-emerald-500/20 px-1 py-0.2 rounded border border-emerald-500/30">
-                                                                {{ $rankings['fifth_goals'] }} GOL SUKU
+                                                                {{ $rankings['fifth_goals'] }} JUMLAH GOL
                                                             </span>
                                                         @endif
                                                     </div>
