@@ -103,28 +103,28 @@ new class extends Component
                     default => 'Permainan'
                 };
             @endphp
-            <h2 class="text-xl font-extrabold text-base-content">Papan Pemuka Kehadiran — {{ $gameLabel }}</h2>
-            <p class="text-xs text-base-content/40 mt-0.5">Dikemaskini setiap 10 saat</p>
+            <h2 class="text-xl font-extrabold text-base-content">{{ __('Papan Pemuka Kehadiran') }} — {{ $gameLabel }}</h2>
+            <p class="text-xs text-base-content/40 mt-0.5">{{ __('Dikemaskini setiap 10 saat') }}</p>
         </div>
         <div class="flex items-center gap-2 flex-wrap">
             <button wire:click="resetAttendance" 
                     wire:confirm="AMARAN: Anda pasti mahu RESET semua kehadiran bagi permainan ini semula kepada status Berdaftar?"
                     class="inline-flex items-center gap-1.5 bg-white border-2 border-red-200 text-red-500 hover:bg-red-50 text-sm font-bold px-4 py-2.5 rounded-xl transition-colors">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                Reset Kehadiran
+                {{ __('Reset Kehadiran') }}
             </button>
             @if(!$isLocked)
                 <button wire:click="lockAttendance" wire:confirm="Anda pasti mahu KUNCI kehadiran?"
                         class="inline-flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white text-sm font-bold px-5 py-2.5 rounded-xl transition-colors">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-                    Kunci Kehadiran
+                    {{ __('Kunci Kehadiran') }}
                 </button>
             @else
                 <div class="flex items-center gap-3">
                     <div class="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 text-sm font-bold px-4 py-2 rounded-xl">
-                        🔒 Kehadiran Dikunci
+                        🔒 {{ __('Kehadiran Dikunci') }}
                     </div>
-                    <button wire:click="unlockAttendance" class="text-sm font-medium text-base-content/50 hover:text-base-content px-3 py-2 rounded-xl hover:bg-base-200 transition-colors">Buka Kunci</button>
+                    <button wire:click="unlockAttendance" class="text-sm font-medium text-base-content/50 hover:text-base-content px-3 py-2 rounded-xl hover:bg-base-200 transition-colors">{{ __('Buka Kunci') }}</button>
                 </div>
             @endif
         </div>
@@ -136,33 +136,33 @@ new class extends Component
                 <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0"/></svg>
             </div>
             <p class="text-3xl font-extrabold text-base-content">{{ $this->totals['total'] }}</p>
-            <p class="text-xs text-base-content/50 mt-1 font-medium">Jumlah Daftar</p>
+            <p class="text-xs text-base-content/50 mt-1 font-medium">{{ __('Jumlah Daftar') }}</p>
         </div>
         <div class="bg-white rounded-2xl p-5 border border-emerald-100 shadow-sm">
             <div class="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center mb-3">
                 <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
             </div>
             <p class="text-3xl font-extrabold text-emerald-600">{{ $this->totals['checked_in'] }}</p>
-            <p class="text-xs text-emerald-600/60 mt-1 font-medium">Hadir — {{ $this->totals['total'] > 0 ? round(($this->totals['checked_in'] / $this->totals['total']) * 100) : 0 }}%</p>
+            <p class="text-xs text-emerald-600/60 mt-1 font-medium">{{ __('Hadir') }} — {{ $this->totals['total'] > 0 ? round(($this->totals['checked_in'] / $this->totals['total']) * 100) : 0 }}%</p>
         </div>
         <div class="bg-white rounded-2xl p-5 border border-red-100 shadow-sm">
             <div class="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center mb-3">
                 <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </div>
             <p class="text-3xl font-extrabold text-red-500">{{ $this->totals['absent'] }}</p>
-            <p class="text-xs text-red-500/60 mt-1 font-medium">Tidak Hadir — {{ $this->totals['total'] > 0 ? round(($this->totals['absent'] / $this->totals['total']) * 100) : 0 }}%</p>
+            <p class="text-xs text-red-500/60 mt-1 font-medium">{{ __('Tidak Hadir') }} — {{ $this->totals['total'] > 0 ? round(($this->totals['absent'] / $this->totals['total']) * 100) : 0 }}%</p>
         </div>
         <div class="bg-white rounded-2xl p-5 border border-amber-100 shadow-sm">
             <div class="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center mb-3">
                 <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             </div>
             <p class="text-3xl font-extrabold text-amber-500">{{ $this->totals['pending'] }}</p>
-            <p class="text-xs text-amber-500/60 mt-1 font-medium">Belum Ditanda</p>
+            <p class="text-xs text-amber-500/60 mt-1 font-medium">{{ __('Belum Ditanda') }}</p>
         </div>
     </div>
 
     <div>
-        <h3 class="text-xs font-bold text-base-content/40 uppercase tracking-widest mb-3">Mengikut Kategori</h3>
+        <h3 class="text-xs font-bold text-base-content/40 uppercase tracking-widest mb-3">{{ __('Mengikut Kategori') }}</h3>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             @foreach($this->stats as $cat)
             @php $pct = $cat->teams_count > 0 ? round(($cat->checked_in_count / $cat->teams_count) * 100) : 0; @endphp
@@ -175,9 +175,9 @@ new class extends Component
                     <div class="h-3 rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all duration-700" style="width: {{ $pct }}%"></div>
                 </div>
                 <div class="flex justify-between text-xs font-semibold">
-                    <span class="text-emerald-600">✓ {{ $cat->checked_in_count }} Hadir</span>
-                    <span class="text-red-500">✕ {{ $cat->absent_count }} Tidak</span>
-                    <span class="text-amber-500">⏳ {{ $cat->pending_count }} Belum</span>
+                    <span class="text-emerald-600">✓ {{ $cat->checked_in_count }} {{ __('Hadir') }}</span>
+                    <span class="text-red-500">✕ {{ $cat->absent_count }} {{ __('Tidak') }}</span>
+                    <span class="text-amber-500">⏳ {{ $cat->pending_count }} {{ __('Belum') }}</span>
                     <span class="text-primary font-bold">{{ $pct }}%</span>
                 </div>
             </div>

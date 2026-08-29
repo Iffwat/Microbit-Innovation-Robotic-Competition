@@ -250,16 +250,16 @@ new class extends Component
 
     @if(!$activeField)
         <div class="text-center mb-8">
-            <h2 class="text-2xl font-black text-base-content">Pilih Padang Anda</h2>
-            <p class="text-base-content/50 mt-1">Sila klik pada nombor padang di mana anda bertugas sekarang.</p>
+            <h2 class="text-2xl font-black text-base-content">{{ __('Pilih Padang Anda') }}</h2>
+            <p class="text-base-content/50 mt-1">{{ __('Sila klik pada nombor padang di mana anda bertugas sekarang.') }}</p>
         </div>
 
         @if($this->fields->isEmpty())
             <div class="bg-amber-50 border border-amber-200 rounded-2xl p-8 text-center text-amber-800">
                 <svg class="w-12 h-12 mx-auto mb-3 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                <h3 class="font-bold text-lg">Tiada Perlawanan Dijadualkan</h3>
-                <p class="text-sm mt-1">Sila pastikan Admin telah menjana Jadual Perlawanan (Fixtures) di halaman Kumpulan.</p>
-                <a href="{{ route('admin.groups.index') }}" class="inline-block mt-4 bg-amber-500 text-white px-5 py-2 rounded-xl text-sm font-bold hover:bg-amber-600 transition-colors">Pergi Ke Kumpulan</a>
+                <h3 class="font-bold text-lg">{{ __('Tiada Perlawanan Dijadualkan') }}</h3>
+                <p class="text-sm mt-1">{{ __('Sila pastikan Admin telah menjana Jadual Perlawanan (Fixtures) di halaman Kumpulan.') }}</p>
+                <a href="{{ route('admin.groups.index') }}" class="inline-block mt-4 bg-amber-500 text-white px-5 py-2 rounded-xl text-sm font-bold hover:bg-amber-600 transition-colors">{{ __('Pergi Ke Kumpulan') }}</a>
             </div>
         @else
             <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
@@ -277,14 +277,14 @@ new class extends Component
                             @endif
                         </div>
                         @if(is_numeric($field))
-                            <h3 class="font-extrabold text-lg text-base-content">Padang {{ $field }}</h3>
+                            <h3 class="font-extrabold text-lg text-base-content">{{ __('Padang') }} {{ $field }}</h3>
                         @else
                             <h3 class="font-extrabold text-lg text-base-content">{{ $field }}</h3>
                         @endif
                         @php
                             $pending = \App\Models\TournamentMatch::where('field_number', $field)->where('status', 'scheduled')->count();
                         @endphp
-                        <p class="text-xs font-bold text-amber-600 mt-1">{{ $pending }} Menunggu</p>
+                        <p class="text-xs font-bold text-amber-600 mt-1">{{ $pending }} {{ __('Menunggu') }}</p>
                     </button>
                 @endforeach
             </div>
@@ -305,11 +305,11 @@ new class extends Component
                 </div>
                 <div>
                     @if(is_numeric($activeField))
-                        <h2 class="text-xl font-extrabold text-base-content">Padang {{ $activeField }}</h2>
+                        <h2 class="text-xl font-extrabold text-base-content">{{ __('Padang') }} {{ $activeField }}</h2>
                     @else
                         <h2 class="text-xl font-extrabold text-base-content">{{ $activeField }}</h2>
                     @endif
-                    <p class="text-xs font-bold text-primary tracking-widest uppercase mt-0.5">Dashboard Pengadil</p>
+                    <p class="text-xs font-bold text-primary tracking-widest uppercase mt-0.5">{{ __('Dashboard Pengadil') }}</p>
                 </div>
             </div>
             <div class="flex items-center gap-2 flex-wrap">
@@ -317,10 +317,10 @@ new class extends Component
                         wire:confirm="AMARAN: Anda pasti mahu RESET semua skor perlawanan di padang ini semula kepada Menunggu (0-0)?"
                         class="inline-flex items-center gap-1.5 bg-white border-2 border-red-200 text-red-500 hover:bg-red-50 text-sm font-bold px-3.5 py-2 rounded-xl transition-colors">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                    Reset Skor Padang
+                    {{ __('Reset Skor Padang') }}
                 </button>
                 <button wire:click="clearField" class="bg-base-200 hover:bg-base-300 text-base-content text-sm font-bold px-4 py-2 rounded-xl transition-colors">
-                    Tukar Padang
+                    {{ __('Tukar Padang') }}
                 </button>
             </div>
         </div>
@@ -337,11 +337,11 @@ new class extends Component
                         
                         <div class="mt-3">
                             @if($match->status === 'scheduled')
-                                <span class="inline-block bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider">Menunggu</span>
+                                <span class="inline-block bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider">{{ __('Menunggu') }}</span>
                             @elseif($match->status === 'in_progress')
-                                <span class="inline-block bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider animate-pulse">Sedang Berlangsung</span>
+                                <span class="inline-block bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider animate-pulse">{{ __('Sedang Berlangsung') }}</span>
                             @else
-                                <span class="inline-block bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider">Selesai</span>
+                                <span class="inline-block bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider">{{ __('Selesai') }}</span>
                             @endif
                         </div>
                     </div>
@@ -359,7 +359,7 @@ new class extends Component
                             @if(($match->group ? $match->group->game_type : '') === 'obstacle')
                                 @if($match->status === 'completed')
                                     <div class="shrink-0 flex flex-col items-center justify-center px-6 border-l border-base-200">
-                                        <p class="text-[10px] font-bold text-base-content/50 uppercase mb-1">Masa Rasmi</p>
+                                        <p class="text-[10px] font-bold text-base-content/50 uppercase mb-1">{{ __('Masa Rasmi') }}</p>
                                         <span class="text-xl font-black text-emerald-600">{{ $match->formatted_obstacle_time }}</span>
                                     </div>
                                 @endif
@@ -372,7 +372,7 @@ new class extends Component
                                         <span class="text-base-content/30 font-bold text-sm">-</span>
                                         <span class="text-2xl font-black {{ $match->away_score > $match->home_score ? 'text-emerald-600' : 'text-base-content' }}">{{ $match->away_score }}</span>
                                     </div>
-                                    <span class="text-[10px] font-bold text-base-content/40 uppercase mt-1">Keputusan Rasmi</span>
+                                    <span class="text-[10px] font-bold text-base-content/40 uppercase mt-1">{{ __('Keputusan Rasmi') }}</span>
                                 @else
                                     <div class="w-10 h-10 rounded-full bg-base-200 flex items-center justify-center text-xs font-black text-base-content/40">VS</div>
                                 @endif
@@ -390,25 +390,25 @@ new class extends Component
                     {{-- Action Button --}}
                     <div class="p-4 bg-base-50 border-t md:border-t-0 md:border-l border-base-200 flex flex-col md:flex-row items-center justify-center gap-2 md:w-56">
                         @if((!$match->homeTeam || !$match->awayTeam) && ($match->group ? $match->group->game_type : '') !== 'obstacle')
-                            <button class="w-full bg-base-200 text-base-content/40 text-xs font-bold py-3 rounded-xl cursor-not-allowed">Auto-Bye</button>
+                            <button class="w-full bg-base-200 text-base-content/40 text-xs font-bold py-3 rounded-xl cursor-not-allowed">{{ __('Auto-Bye') }}</button>
                         @else
                             <div class="flex flex-col gap-2 w-full">
                                 @if($match->status === 'completed')
                                     <button wire:click="openScoring({{ $match->id }})" class="bg-base-200 hover:bg-base-300 text-base-content font-bold px-4 py-2.5 rounded-xl text-sm transition-colors w-full">
-                                        Kemaskini
+                                        {{ __('Kemaskini') }}
                                     </button>
                                 @else
                                     @if($match->status === 'scheduled')
                                         <button wire:click="callTeam({{ $match->id }})" class="bg-amber-100 hover:bg-amber-200 text-amber-700 font-bold px-4 py-2 rounded-xl text-xs transition-colors w-full flex items-center justify-center gap-1.5">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
-                                            Panggil
+                                            {{ __('Panggil') }}
                                         </button>
                                     @endif
                                     <button wire:click="openScoring({{ $match->id }})" class="bg-primary hover:bg-primary/90 text-white font-bold px-4 py-2.5 rounded-xl text-sm shadow-md shadow-primary/20 transition-all w-full">
                                         @if(($match->group ? $match->group->game_type : '') === 'obstacle')
-                                            Rekod Masa
+                                            {{ __('Rekod Masa') }}
                                         @else
-                                            Rekod Markah
+                                            {{ __('Rekod Markah') }}
                                         @endif
                                     </button>
                                 @endif
@@ -418,7 +418,7 @@ new class extends Component
                 </div>
             @empty
                 <div class="text-center py-12 text-base-content/40">
-                    <p class="font-bold">Tiada perlawanan dijumpai untuk padang ini.</p>
+                    <p class="font-bold">{{ __('Tiada perlawanan dijumpai untuk padang ini.') }}</p>
                 </div>
             @endforelse
         </div>
@@ -473,8 +473,8 @@ new class extends Component
                         
                         <div class="px-6 py-5 bg-gradient-to-r from-primary to-secondary text-white flex justify-between items-center">
                             <div>
-                                <h3 class="text-xl font-black">{{ $isObs ? 'Rekod Masa (Time Trial)' : 'Rekod Markah Perlawanan' }}</h3>
-                                <p class="text-white/70 text-xs mt-0.5 font-medium uppercase tracking-widest">{{ $sm->round_name }} • PADANG {{ $sm->field_number }}</p>
+                                <h3 class="text-xl font-black">{{ $isObs ? __('Rekod Masa (Time Trial)') : __('Rekod Markah Perlawanan') }}</h3>
+                                <p class="text-white/70 text-xs mt-0.5 font-medium uppercase tracking-widest">{{ $sm->round_name }} • {{ __('Padang') }} {{ $sm->field_number }}</p>
                             </div>
                             <button wire:click="closeScoring" class="text-white/50 hover:text-white bg-white/10 hover:bg-white/20 p-2 rounded-xl transition-colors">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -492,27 +492,27 @@ new class extends Component
                                 <div x-data="{ activeTab: 1 }" class="space-y-4">
                                     <div class="flex bg-base-200/50 p-1 rounded-xl">
                                         <button x-on:click="activeTab = 1" :class="activeTab === 1 ? 'bg-white shadow-sm text-primary font-bold' : 'text-base-content/60 font-medium hover:text-base-content'" class="flex-1 py-2 rounded-lg text-sm transition-all">
-                                            Larian 1<br><span class="text-[10px] font-normal uppercase">{{ $sm->homeTeam->player_1 ?? 'Peserta 1' }}</span>
+                                            {{ __('Larian 1') }}<br><span class="text-[10px] font-normal uppercase">{{ $sm->homeTeam->player_1 ?? __('Peserta 1') }}</span>
                                         </button>
                                         <button x-on:click="activeTab = 2" :class="activeTab === 2 ? 'bg-white shadow-sm text-primary font-bold' : 'text-base-content/60 font-medium hover:text-base-content'" class="flex-1 py-2 rounded-lg text-sm transition-all">
-                                            Larian 2<br><span class="text-[10px] font-normal uppercase">{{ $sm->homeTeam->player_2 ?? 'Peserta 2' }}</span>
+                                            {{ __('Larian 2') }}<br><span class="text-[10px] font-normal uppercase">{{ $sm->homeTeam->player_2 ?? __('Peserta 2') }}</span>
                                         </button>
                                     </div>
                                     
                                     {{-- TAB 1 --}}
                                     <div x-show="activeTab === 1" class="bg-base-200/50 p-5 rounded-2xl border border-base-200 space-y-4">
                                         <div>
-                                            <label class="block text-xs font-bold text-base-content/50 uppercase tracking-widest mb-2">Masa Larian 1</label>
+                                            <label class="block text-xs font-bold text-base-content/50 uppercase tracking-widest mb-2">{{ __('Masa Larian 1') }}</label>
                                             <div class="flex gap-2">
                                                 <input type="number" wire:model.live="obsMinutes1" min="0" placeholder="Min" class="w-full text-center text-xl font-black py-3 rounded-xl border-2 border-base-300 focus:border-primary focus:ring-4 focus:ring-primary/10">
                                                 <span class="text-2xl font-bold text-base-content/30 py-2">:</span>
-                                                <input type="number" wire:model.live="obsSeconds1" min="0" max="59" placeholder="Saat" class="w-full text-center text-xl font-black py-3 rounded-xl border-2 border-base-300 focus:border-primary focus:ring-4 focus:ring-primary/10">
+                                                <input type="number" wire:model.live="obsSeconds1" min="0" max="59" placeholder="Sec" class="w-full text-center text-xl font-black py-3 rounded-xl border-2 border-base-300 focus:border-primary focus:ring-4 focus:ring-primary/10">
                                                 <span class="text-2xl font-bold text-base-content/30 py-2">.</span>
                                                 <input type="number" wire:model.live="obsMilliseconds1" min="0" max="999" placeholder="Ms" class="w-full text-center text-xl font-black py-3 rounded-xl border-2 border-base-300 focus:border-primary focus:ring-4 focus:ring-primary/10">
                                             </div>
                                         </div>
                                         <div class="pt-4 border-t border-base-200">
-                                            <label class="block text-xs font-bold text-base-content/50 uppercase tracking-widest mb-2">Penalti (+1 Saat)</label>
+                                            <label class="block text-xs font-bold text-base-content/50 uppercase tracking-widest mb-2">{{ __('Penalti (+1 Saat)') }}</label>
                                             <div class="flex items-center justify-between bg-white rounded-xl border-2 border-base-300 p-2">
                                                 <button wire:click="decrementPenalty(1)" class="w-12 h-12 flex items-center justify-center bg-red-100 text-red-600 hover:bg-red-200 rounded-lg font-bold text-2xl transition-colors">-</button>
                                                 <span class="text-3xl font-black text-base-content">{{ $obsPenalties1 }}</span>
@@ -524,17 +524,17 @@ new class extends Component
                                     {{-- TAB 2 --}}
                                     <div x-show="activeTab === 2" style="display: none;" class="bg-base-200/50 p-5 rounded-2xl border border-base-200 space-y-4">
                                         <div>
-                                            <label class="block text-xs font-bold text-base-content/50 uppercase tracking-widest mb-2">Masa Larian 2</label>
+                                            <label class="block text-xs font-bold text-base-content/50 uppercase tracking-widest mb-2">{{ __('Masa Larian 2') }}</label>
                                             <div class="flex gap-2">
                                                 <input type="number" wire:model.live="obsMinutes2" min="0" placeholder="Min" class="w-full text-center text-xl font-black py-3 rounded-xl border-2 border-base-300 focus:border-primary focus:ring-4 focus:ring-primary/10">
                                                 <span class="text-2xl font-bold text-base-content/30 py-2">:</span>
-                                                <input type="number" wire:model.live="obsSeconds2" min="0" max="59" placeholder="Saat" class="w-full text-center text-xl font-black py-3 rounded-xl border-2 border-base-300 focus:border-primary focus:ring-4 focus:ring-primary/10">
+                                                <input type="number" wire:model.live="obsSeconds2" min="0" max="59" placeholder="Sec" class="w-full text-center text-xl font-black py-3 rounded-xl border-2 border-base-300 focus:border-primary focus:ring-4 focus:ring-primary/10">
                                                 <span class="text-2xl font-bold text-base-content/30 py-2">.</span>
                                                 <input type="number" wire:model.live="obsMilliseconds2" min="0" max="999" placeholder="Ms" class="w-full text-center text-xl font-black py-3 rounded-xl border-2 border-base-300 focus:border-primary focus:ring-4 focus:ring-primary/10">
                                             </div>
                                         </div>
                                         <div class="pt-4 border-t border-base-200">
-                                            <label class="block text-xs font-bold text-base-content/50 uppercase tracking-widest mb-2">Penalti (+1 Saat)</label>
+                                            <label class="block text-xs font-bold text-base-content/50 uppercase tracking-widest mb-2">{{ __('Penalti (+1 Saat)') }}</label>
                                             <div class="flex items-center justify-between bg-white rounded-xl border-2 border-base-300 p-2">
                                                 <button wire:click="decrementPenalty(2)" class="w-12 h-12 flex items-center justify-center bg-red-100 text-red-600 hover:bg-red-200 rounded-lg font-bold text-2xl transition-colors">-</button>
                                                 <span class="text-3xl font-black text-base-content">{{ $obsPenalties2 }}</span>
@@ -545,7 +545,7 @@ new class extends Component
                                 </div>
                                 
                                 <div class="bg-primary/5 border border-primary/20 rounded-xl p-4 text-center">
-                                    <p class="text-xs font-bold text-primary uppercase tracking-widest">Masa Rasmi (Terpantas)</p>
+                                    <p class="text-xs font-bold text-primary uppercase tracking-widest">{{ __('Masa Rasmi (Terpantas)') }}</p>
                                     @php
                                         // Run 1
                                         $min1 = (int)($obsMinutes1 ?: 0); $sec1 = (int)($obsSeconds1 ?: 0); $ms1 = (int)($obsMilliseconds1 ?: 0); $pen1 = (int)($obsPenalties1 ?: 0);
@@ -563,12 +563,12 @@ new class extends Component
                                         else $bestMs = 0;
                                         
                                         if ($bestMs > 0) {
-                                            $tM = floor($bestMs / 60000);
-                                            $tS = floor(($bestMs % 60000) / 1000);
-                                            $tMs = $bestMs % 1000;
-                                            $timeStr = sprintf('%02d:%02d.%03d', $tM, $tS, $tMs);
+                                             $tM = floor($bestMs / 60000);
+                                             $tS = floor(($bestMs % 60000) / 1000);
+                                             $tMs = $bestMs % 1000;
+                                             $timeStr = sprintf('%02d:%02d.%03d', $tM, $tS, $tMs);
                                         } else {
-                                            $timeStr = '-';
+                                             $timeStr = '-';
                                         }
                                     @endphp
                                     <p class="text-3xl font-black text-primary mt-1">{{ $timeStr }}</p>
@@ -577,7 +577,7 @@ new class extends Component
                             @else
                                 {{-- SOCCER SCORING --}}
                                 <div class="bg-base-200/50 rounded-2xl p-4 border border-base-200 text-center">
-                                    <p class="text-xs font-bold text-base-content/50 uppercase tracking-widest mb-2">Jam Perlawanan (Bantuan)</p>
+                                    <p class="text-xs font-bold text-base-content/50 uppercase tracking-widest mb-2">{{ __('Jam Perlawanan (Bantuan)') }}</p>
                                     <div class="text-5xl font-black text-base-content tabular-nums mb-3" x-text="stopwatch.format()">00:00</div>
                                     <div class="flex items-center justify-center gap-2">
                                         <button x-on:click="stopwatch.start()" x-show="!stopwatch.running" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded-lg text-sm font-bold shadow-sm">Start</button>
@@ -615,15 +615,15 @@ new class extends Component
                                 @if($sm->status === 'completed')
                                     <button wire:click="resetMatch({{ $sm->id }})" wire:confirm="Anda pasti mahu buang semua markah dan reset perlawanan ini untuk Rematch?" class="px-5 py-2.5 rounded-xl font-bold bg-red-100 text-red-600 hover:bg-red-200 transition-colors flex items-center gap-2">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                                        Rematch
+                                        {{ __('Rematch') }}
                                     </button>
                                 @endif
                             </div>
                             <div class="flex gap-2">
-                                <button wire:click="closeScoring" class="px-5 py-2.5 rounded-xl font-bold text-base-content/60 hover:bg-base-200 transition-colors">Batal</button>
+                                <button wire:click="closeScoring" class="px-5 py-2.5 rounded-xl font-bold text-base-content/60 hover:bg-base-200 transition-colors">{{ __('Batal') }}</button>
                                 <button wire:click="saveScore" wire:loading.attr="disabled" class="px-6 py-2.5 rounded-xl font-bold bg-primary hover:bg-primary/90 text-white shadow-md shadow-primary/20 transition-all flex items-center gap-2">
-                                    <span wire:loading.remove wire:target="saveScore">Sahkan & Simpan</span>
-                                    <span wire:loading wire:target="saveScore">Menyimpan...</span>
+                                    <span wire:loading.remove wire:target="saveScore">{{ __('Sahkan & Simpan') }}</span>
+                                    <span wire:loading wire:target="saveScore">{{ __('Menyimpan...') }}</span>
                                 </button>
                             </div>
                         </div>

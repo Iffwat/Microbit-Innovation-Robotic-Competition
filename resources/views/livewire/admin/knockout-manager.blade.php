@@ -163,8 +163,8 @@ new class extends Component {
     <!-- Header -->
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white border border-base-200 rounded-3xl p-6 shadow-sm">
         <div>
-            <h1 class="text-2xl font-black text-base-content">🏆 Pengurusan Kalah Mati</h1>
-            <p class="text-sm text-base-content/60 mt-1">Jana dan pantau carta pusingan kalah mati (Knockout Brackets) selepas tamat peringkat kumpulan.</p>
+            <h1 class="text-2xl font-black text-base-content">🏆 {{ __('Pengurusan Kalah Mati') }}</h1>
+            <p class="text-sm text-base-content/60 mt-1">{{ __('Jana dan pantau carta pusingan kalah mati (Knockout Brackets) selepas tamat peringkat kumpulan.') }}</p>
         </div>
     </div>
 
@@ -203,38 +203,38 @@ new class extends Component {
                     @if($hasGroups)
                         <div class="space-y-2 mt-4">
                             <div class="flex justify-between items-center bg-base-50 px-4 py-2 rounded-xl text-sm">
-                                <span class="text-base-content/60 font-medium">Jumlah Kumpulan:</span>
+                                <span class="text-base-content/60 font-medium">{{ __('Jumlah Kumpulan:') }}</span>
                                 <span class="font-bold text-base-content">{{ $groups->count() }} ({{ $groups->pluck('group_letter')->join(', ') }})</span>
                             </div>
                             <div class="flex justify-between items-center bg-base-50 px-4 py-2 rounded-xl text-sm">
-                                <span class="text-base-content/60 font-medium">Status Kalah Mati:</span>
+                                <span class="text-base-content/60 font-medium">{{ __('Status Kalah Mati:') }}</span>
                                 @if($hasKnockouts)
-                                    <span class="font-bold text-primary">Telah Dijana</span>
+                                    <span class="font-bold text-primary">{{ __('Telah Dijana') }}</span>
                                 @else
-                                    <span class="font-bold text-amber-500">Belum Dijana</span>
+                                    <span class="font-bold text-amber-500">{{ __('Belum Dijana') }}</span>
                                 @endif
                             </div>
                         </div>
                     @else
-                        <p class="text-sm text-base-content/50 mt-4 italic">Kategori ini tidak mempunyai peringkat liga/kumpulan.</p>
+                        <p class="text-sm text-base-content/50 mt-4 italic">{{ __('Kategori ini tidak mempunyai peringkat liga/kumpulan.') }}</p>
                     @endif
                 </div>
 
                 <div class="p-4 bg-base-50 border-t border-base-200">
                     @if(!$hasGroups)
-                        <button class="w-full bg-base-200 text-base-content/40 font-bold py-2.5 rounded-xl cursor-not-allowed text-sm">Tiada Sokongan</button>
+                        <button class="w-full bg-base-200 text-base-content/40 font-bold py-2.5 rounded-xl cursor-not-allowed text-sm">{{ __('Tiada Sokongan') }}</button>
                     @elseif($hasKnockouts)
                         <div class="flex gap-2">
                             <a href="{{ route('admin.knockout.show', $category->id) }}" class="flex-1 text-center bg-white border-2 border-primary text-primary hover:bg-primary hover:text-white font-bold py-2.5 rounded-xl transition-colors text-sm">
-                                Lihat Carta
+                                {{ __('Lihat Carta') }}
                             </a>
                             @if(session('auth_role') === 'master')
-                            <button wire:click="selectCategory({{ $category->id }})" class="px-3 bg-base-200 hover:bg-primary/10 hover:text-primary text-base-content/60 font-bold rounded-xl transition-colors text-sm" title="Jana Semula">
+                            <button wire:click="selectCategory({{ $category->id }})" class="px-3 bg-base-200 hover:bg-primary/10 hover:text-primary text-base-content/60 font-bold rounded-xl transition-colors text-sm" title="{{ __('Jana Semula') }}">
                                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                             </button>
                             <button wire:click="deleteKnockout({{ $category->id }})" 
                                     wire:confirm="AMARAN: Anda pasti mahu MEMADAM seluruh carta kalah mati untuk {{ $category->name }}?"
-                                    class="px-3 bg-base-200 hover:bg-red-100 hover:text-red-600 text-base-content/60 font-bold rounded-xl transition-colors text-sm" title="Padam Kalah Mati">
+                                    class="px-3 bg-base-200 hover:bg-red-100 hover:text-red-600 text-base-content/60 font-bold rounded-xl transition-colors text-sm" title="{{ __('Padam Kalah Mati') }}">
                                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                             </button>
                             @endif
@@ -242,11 +242,11 @@ new class extends Component {
                       @else
                           @if(session('auth_role') === 'master')
                           <button wire:click="selectCategory({{ $category->id }})" class="w-full bg-primary hover:bg-primary/90 text-white font-bold py-2.5 rounded-xl shadow-lg shadow-primary/20 transition-colors text-sm">
-                              Jana Kalah Mati
+                              {{ __('Jana Kalah Mati') }}
                           </button>
                           @else
                           <button disabled class="w-full bg-base-200 text-base-content/40 font-bold py-2.5 rounded-xl cursor-not-allowed text-sm">
-                              Menunggu Admin
+                              {{ __('Menunggu Admin') }}
                           </button>
                           @endif
                       @endif
@@ -265,30 +265,30 @@ new class extends Component {
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
             <div class="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-slide-up">
                 <div class="p-6 border-b border-base-200 bg-base-50">
-                    <h3 class="font-black text-xl text-base-content">Jana Perlawanan: {{ $cat->name }}</h3>
+                    <h3 class="font-black text-xl text-base-content">{{ __('Jana Perlawanan:') }} {{ $cat->name }}</h3>
                 </div>
                 
                 <div class="p-6 space-y-6">
                     <div class="bg-blue-50 border border-blue-200 text-blue-800 p-4 rounded-2xl text-sm leading-relaxed">
-                        Kategori ini mempunyai <strong>{{ $groupCount }} Kumpulan</strong>. Sistem akan menyusun perlawanan secara silang (Piawaian FIFA) berdasarkan kedudukan terkini peringkat kumpulan.
+                        {{ __('Kategori ini mempunyai') }} <strong>{{ $groupCount }} {{ __('Kumpulan') }}</strong>. {{ __('Sistem akan menyusun perlawanan secara silang (Piawaian FIFA) berdasarkan kedudukan terkini peringkat kumpulan.') }}
                     </div>
 
                     @if($hasKnockouts)
                         <div class="bg-red-50 border border-red-200 text-red-700 p-4 rounded-2xl text-sm font-medium flex items-start gap-3">
                             <svg class="w-5 h-5 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                            AMARAN: Data kalah mati (beserta skor) yang sedia ada untuk kategori ini akan dipadam dan dijana semula secara automatik jika anda meneruskan.
+                            {{ __('AMARAN: Data kalah mati (beserta skor) yang sedia ada untuk kategori ini akan dipadam dan dijana semula secara automatik jika anda meneruskan.') }}
                         </div>
                     @endif
 
                     <div class="space-y-3">
                         <button wire:click="generateKnockout({{ $cat->id }}, false)" class="w-full bg-primary hover:bg-primary/90 text-white font-bold py-4 rounded-2xl shadow-lg shadow-primary/20 transition-all flex flex-col items-center justify-center gap-1">
-                            <span>Jana Pusingan Trofi Sahaja</span>
-                            <span class="text-xs font-medium text-white/70">(Juara & Naib Juara Kumpulan sahaja)</span>
+                            <span>{{ __('Jana Pusingan Trofi Sahaja') }}</span>
+                            <span class="text-xs font-medium text-white/70">({{ __('Juara & Naib Juara Kumpulan sahaja') }})</span>
                         </button>
                         
                         <button wire:click="generateKnockout({{ $cat->id }}, true)" class="w-full bg-secondary hover:bg-secondary/90 text-white font-bold py-4 rounded-2xl shadow-lg shadow-secondary/20 transition-all flex flex-col items-center justify-center gap-1">
-                            <span>Jana Trofi & Piala (Khas U12)</span>
-                            <span class="text-xs font-medium text-white/70">(Trofi: Top 2 | Piala: Tempat 3 & 4)</span>
+                            <span>{{ __('Jana Trofi & Piala (Khas U12)') }}</span>
+                            <span class="text-xs font-medium text-white/70">({{ __('Trofi: Top 2 | Piala: Tempat 3 & 4') }})</span>
                         </button>
 
                         @if($hasKnockouts)
@@ -296,7 +296,7 @@ new class extends Component {
                                 wire:confirm="AMARAN: Anda pasti mahu MEMADAM seluruh carta kalah mati untuk {{ $cat->name }}?"
                                 class="w-full bg-white border-2 border-red-200 text-red-600 hover:bg-red-50 font-bold py-3 rounded-2xl transition-all flex items-center justify-center gap-2 text-sm">
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                            <span>Padam Carta Kalah Mati Sedia Ada</span>
+                            <span>{{ __('Padam Carta Kalah Mati Sedia Ada') }}</span>
                         </button>
                         @endif
                     </div>
@@ -304,7 +304,7 @@ new class extends Component {
 
                 <div class="p-4 border-t border-base-200 bg-base-50 flex justify-end">
                     <button wire:click="$set('selectedCategory', null)" class="px-6 py-2.5 bg-base-200 hover:bg-base-300 text-base-content font-bold rounded-xl transition-colors text-sm">
-                        Batal
+                        {{ __('Batal') }}
                     </button>
                 </div>
             </div>

@@ -1,5 +1,5 @@
-<?php $__env->startSection('title', 'Penjana Kalah Mati'); ?>
-<?php $__env->startSection('page-title', 'Penjana Perlawanan Kalah Mati'); ?>
+<?php $__env->startSection('title', __('Penjana Kalah Mati')); ?>
+<?php $__env->startSection('page-title', __('Penjana Perlawanan Kalah Mati')); ?>
 <?php $__env->startSection('content'); ?>
     <?php
 $__split = function ($name, $params = []) {

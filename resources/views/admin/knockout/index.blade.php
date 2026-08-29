@@ -1,6 +1,6 @@
 @extends('layouts.admin')
-@section('title', 'Penjana Kalah Mati')
-@section('page-title', 'Penjana Perlawanan Kalah Mati')
+@section('title', __('Penjana Kalah Mati'))
+@section('page-title', __('Penjana Perlawanan Kalah Mati'))
 @section('content')
     <livewire:admin.knockout-manager />
 @endsection

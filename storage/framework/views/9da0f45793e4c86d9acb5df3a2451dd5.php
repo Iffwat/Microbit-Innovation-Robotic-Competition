@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="<?php echo e(app()->getLocale()); ?>" data-theme="mric">
 <head>
     <meta charset="UTF-8">
@@ -45,18 +45,19 @@
                     <a href="<?php echo e(route('lang.switch', 'en')); ?>"
                        class="join-item px-3 py-1.5 text-xs font-semibold transition-colors <?php echo e(app()->getLocale() === 'en' ? 'bg-primary text-white' : 'bg-white text-base-content/60 hover:bg-base-200'); ?>">EN</a>
                 </div>
-
                 
                 <div class="hidden md:flex items-center gap-2">
                     <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(session('auth_role') === 'master'): ?>
                         <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary">
                             <span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
-                            Master Admin
+                            <?php echo e(__('Master Admin')); ?>
+
                         </span>
                     <?php else: ?>
                         <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-secondary/10 text-secondary">
                             <span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
-                            Sukarelawan
+                            <?php echo e(__('Sukarelawan')); ?>
+
                         </span>
                     <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                 </div>
@@ -71,7 +72,7 @@
                     </div>
                     <ul tabindex="0" class="menu menu-sm dropdown-content mt-2 z-[1] p-2 shadow-xl bg-white rounded-2xl w-44 border border-base-200">
                         <li class="menu-title text-xs px-2 pb-1">
-                            <?php echo e(session('auth_role') === 'master' ? 'Master Admin' : 'Sukarelawan'); ?>
+                            <?php echo e(session('auth_role') === 'master' ? __('Master Admin') : __('Sukarelawan')); ?>
 
                         </li>
                         <li>
@@ -79,7 +80,8 @@
                                 <?php echo csrf_field(); ?>
                                 <button type="submit" class="text-error font-medium w-full text-left flex items-center gap-2">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-                                    Log Keluar
+                                    <?php echo e(__('Log Keluar')); ?>
+
                                 </button>
                             </form>
                         </li>
@@ -110,7 +112,7 @@
         </main>
 
         <footer class="py-3 px-6 text-center text-xs text-base-content/30 border-t border-base-200 bg-white">
-            � <?php echo e(date('Y')); ?> Microbit Innovation Robotic Competition � MIRC TMS v1.0
+            © <?php echo e(date('Y')); ?> Microbit Innovation Robotic Competition • MIRC TMS v1.0
         </footer>
     </div>
 
@@ -125,17 +127,17 @@
                     <div class="flex gap-1.5">
                         <div class="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center overflow-hidden">
                             <img src="<?php echo e(asset('images/company-logo.png')); ?>" class="w-full h-full object-contain" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" alt="">
-                            <span class="text-primary text-lg hidden">??</span>
+                            <span class="text-primary text-lg hidden">⚡</span>
                         </div>
                         <div class="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center overflow-hidden">
                             <img src="<?php echo e(asset('images/competition-logo.png')); ?>" class="w-full h-full object-contain" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" alt="">
-                            <span class="text-secondary text-lg hidden">??</span>
+                            <span class="text-secondary text-lg hidden">🤖</span>
                         </div>
                     </div>
                 </div>
                 <p class="font-extrabold text-sm text-primary leading-tight">MICROBIT INNOVATION</p>
                 <p class="font-bold text-xs text-secondary leading-tight">ROBOTIC COMPETITION</p>
-                <p class="text-xs text-base-content/40 mt-0.5">Sistem Pengurusan Pertandingan</p>
+                <p class="text-xs text-base-content/40 mt-0.5"><?php echo e(__('Sistem Pengurusan Pertandingan')); ?></p>
             </div>
 
             
@@ -143,57 +145,65 @@
 
                 <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(session('auth_role') === 'master'): ?>
                 
-                <p class="px-4 pt-2 pb-1 text-[10px] font-bold uppercase tracking-widest text-base-content/30">Utama</p>
+                <p class="px-4 pt-2 pb-1 text-[10px] font-bold uppercase tracking-widest text-base-content/30"><?php echo e(__('Utama')); ?></p>
                 <a href="<?php echo e(route('admin.dashboard')); ?>"
                    class="nav-item <?php echo e(request()->routeIs('admin.dashboard') ? 'active' : ''); ?>">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-                    Papan Pemuka
+                    <?php echo e(__('Papan Pemuka')); ?>
+
                 </a>
 
-                <p class="px-4 pt-4 pb-1 text-[10px] font-bold uppercase tracking-widest text-base-content/30">Data</p>
+                <p class="px-4 pt-4 pb-1 text-[10px] font-bold uppercase tracking-widest text-base-content/30"><?php echo e(__('Data')); ?></p>
                 <a href="<?php echo e(route('admin.import.index')); ?>"
                    class="nav-item <?php echo e(request()->routeIs('admin.import.*') ? 'active' : ''); ?>">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-                    Import CSV
+                    <?php echo e(__('Import CSV')); ?>
+
                 </a>
                 <a href="<?php echo e(route('admin.teams.index')); ?>"
                    class="nav-item <?php echo e(request()->routeIs('admin.teams.*') ? 'active' : ''); ?>">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0"/></svg>
-                    Senarai Pasukan
+                    <?php echo e(__('Senarai Pasukan')); ?>
+
                 </a>
                 <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
-                <p class="px-4 pt-4 pb-1 text-[10px] font-bold uppercase tracking-widest text-base-content/30">Hari Pertandingan</p>
+                <p class="px-4 pt-4 pb-1 text-[10px] font-bold uppercase tracking-widest text-base-content/30"><?php echo e(__('Hari Pertandingan')); ?></p>
                 <a href="<?php echo e(route('admin.checkin.index')); ?>"
                    class="nav-item <?php echo e(request()->routeIs('admin.checkin.index') ? 'active' : ''); ?>">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    Semak Masuk
+                    <?php echo e(__('Semak Masuk')); ?>
+
                 </a>
                 <a href="<?php echo e(route('admin.checkin.dashboard')); ?>"
                    class="nav-item <?php echo e(request()->routeIs('admin.checkin.dashboard') ? 'active' : ''); ?>">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-                    Papan Kehadiran
+                    <?php echo e(__('Papan Kehadiran')); ?>
+
                 </a>
 
-                <p class="px-4 pt-4 pb-1 text-[10px] font-bold uppercase tracking-widest text-base-content/30">Pertandingan</p>
+                <p class="px-4 pt-4 pb-1 text-[10px] font-bold uppercase tracking-widest text-base-content/30"><?php echo e(__('Pertandingan')); ?></p>
 
                 <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(session('auth_role') === 'master'): ?>
                 <a href="<?php echo e(route('admin.groups.index')); ?>"
                    class="nav-item <?php echo e(request()->routeIs('admin.groups.*') ? 'active' : ''); ?>">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
-                    Jana Kumpulan
+                    <?php echo e(__('Jana Kumpulan')); ?>
+
                 </a>
                 <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
                 <a href="<?php echo e(route('admin.matches.index')); ?>"
                    class="nav-item <?php echo e(request()->routeIs('admin.matches.*') ? 'active' : ''); ?>">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                    Perlawanan
+                    <?php echo e(__('Perlawanan')); ?>
+
                 </a>
                 <a href="<?php echo e(route('admin.knockout.index')); ?>"
                    class="nav-item <?php echo e(request()->routeIs('admin.knockout.*') ? 'active' : ''); ?>">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3l14 9-14 9V3z"/></svg>
-                    Bracket Knockout
+                    <?php echo e(__('Bracket Knockout')); ?>
+
                 </a>
             </div>
 
@@ -203,7 +213,8 @@
                     <?php echo csrf_field(); ?>
                     <button type="submit" class="nav-item w-full text-error hover:bg-red-50 hover:text-red-600 justify-start">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-                        Log Keluar
+                        <?php echo e(__('Log Keluar')); ?>
+
                     </button>
                 </form>
             </div>

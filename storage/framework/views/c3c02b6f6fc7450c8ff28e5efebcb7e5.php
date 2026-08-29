@@ -16,30 +16,30 @@ use Livewire\Component;
 
     <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($isLocked): ?>
     <div class="flex items-center gap-3 bg-red-50 border border-red-200 rounded-2xl px-5 py-3">
-        <p class="font-bold text-red-700 text-sm">🔒 Kehadiran Dikunci — Hubungi Master Admin untuk buka kunci.</p>
+        <p class="font-bold text-red-700 text-sm">🔒 <?php echo e(__('Kehadiran Dikunci — Hubungi Master Admin untuk buka kunci.')); ?></p>
     </div>
     <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
     
     <div class="bg-white rounded-2xl border border-base-200 shadow-sm overflow-hidden">
         <div class="px-6 py-4 border-b border-base-200 flex items-center justify-between">
-            <h2 class="font-bold text-base-content">Cari & Tandakan Kehadiran</h2>
-            <span class="text-xs text-base-content/50">Kaunter Pendaftaran & Semakan</span>
+            <h2 class="font-bold text-base-content"><?php echo e(__('Cari & Tandakan Kehadiran')); ?></h2>
+            <span class="text-xs text-base-content/50"><?php echo e(__('Kaunter Pendaftaran & Semakan')); ?></span>
         </div>
         <div class="p-5 flex flex-col md:flex-row gap-3">
             <div class="flex-1 relative">
                 <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                <input wire:model.live.debounce.300ms="search" type="text" placeholder="Taip nama pasukan atau nama sekolah..."
+                <input wire:model.live.debounce.300ms="search" type="text" placeholder="<?php echo e(__('Taip nama pasukan atau nama sekolah...')); ?>"
                        class="w-full pl-10 pr-4 py-2.5 border-2 border-base-300 rounded-xl text-sm focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all" autofocus />
             </div>
             <select wire:model.live="filterGame" class="border-2 border-base-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-primary bg-white transition-all">
-                <option value="">Semua Permainan</option>
+                <option value=""><?php echo e(__('Semua Permainan')); ?></option>
                 <option value="isobot">Isobot Soccer</option>
                 <option value="sky_soccer">Drone Sky Soccer</option>
                 <option value="obstacle">Drone Obstacle</option>
             </select>
             <select wire:model.live="filterCategory" class="border-2 border-base-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-primary bg-white transition-all">
-                <option value="">Semua Kategori</option>
+                <option value=""><?php echo e(__('Semua Kategori')); ?></option>
                 <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = $this->categories; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $cat): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoopIteration(); ?><?php endif; ?>
                     <option value="<?php echo e($cat->slug); ?>"><?php echo e($cat->name); ?></option>
                 <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
@@ -49,14 +49,15 @@ use Livewire\Component;
 
     <div wire:loading.flex wire:target="search" class="items-center gap-2 text-primary text-sm">
         <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
-        Mencari pasukan...
+        <?php echo e(__('Mencari pasukan...')); ?>
+
     </div>
 
     
     <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(strlen(trim($search)) >= 2): ?>
         <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($this->results->isEmpty()): ?>
             <div class="bg-blue-50 border border-blue-100 rounded-2xl px-5 py-4 text-sm text-blue-700">
-                Tiada pasukan dijumpai untuk carian "<strong><?php echo e($search); ?></strong>"
+                <?php echo e(__('Tiada pasukan dijumpai untuk carian')); ?> "<strong><?php echo e($search); ?></strong>"
             </div>
         <?php else: ?>
             <div class="space-y-3">
@@ -72,23 +73,23 @@ use Livewire\Component;
                                 <h3 class="font-bold text-base text-base-content"><?php echo e($team->team_name); ?></h3>
                                 <span class="text-xs font-semibold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full"><?php echo e($team->game_type_label); ?></span>
                                 <span class="text-xs font-medium bg-base-200 text-base-content/60 px-2 py-0.5 rounded-full"><?php echo e($team->category->name); ?></span>
-                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($team->status === 'checked_in'): ?> <span class="status-badge-present">● Hadir</span>
-                                <?php elseif($team->status === 'absent'): ?> <span class="status-badge-absent">● Tidak Hadir</span>
-                                <?php else: ?> <span class="status-badge-pending">● Berdaftar</span>
+                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($team->status === 'checked_in'): ?> <span class="status-badge-present">● <?php echo e(__('Hadir')); ?></span>
+                                <?php elseif($team->status === 'absent'): ?> <span class="status-badge-absent">● <?php echo e(__('Tidak Hadir')); ?></span>
+                                <?php else: ?> <span class="status-badge-pending">● <?php echo e(__('Berdaftar')); ?></span>
                                 <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                             </div>
                             <p class="text-xs text-base-content/60 mt-1 font-medium">🏫 <?php echo e($team->school_name); ?></p>
                             
                             
                             <div class="flex items-center gap-3 mt-2 text-xs text-base-content/70 flex-wrap">
-                                <span class="font-semibold text-base-content/40 uppercase tracking-wider text-[10px]">Pemain:</span>
+                                <span class="font-semibold text-base-content/40 uppercase tracking-wider text-[10px]"><?php echo e(__('Pemain:')); ?></span>
                                 <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($team->player_1): ?> <span><strong>1.</strong> <?php echo e($team->player_1); ?></span> <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                                 <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($team->player_2): ?> <span><strong>2.</strong> <?php echo e($team->player_2); ?></span> <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
-                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($team->player_3): ?> <span class="text-base-content/50"><strong>3.</strong> <?php echo e($team->player_3); ?> (Rizab)</span> <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($team->player_3): ?> <span class="text-base-content/50"><strong>3.</strong> <?php echo e($team->player_3); ?> (<?php echo e(__('Rizab')); ?>)</span> <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                             </div>
 
                             <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($team->checked_in_at): ?>
-                                <p class="text-xs text-emerald-600 mt-2 font-medium">✓ Ditanda hadir pada <?php echo e($team->checked_in_at->format('h:i A')); ?></p>
+                                <p class="text-xs text-emerald-600 mt-2 font-medium">✓ <?php echo e(__('Ditanda hadir pada')); ?> <?php echo e($team->checked_in_at->format('h:i A')); ?></p>
                             <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                         </div>
 
@@ -96,9 +97,10 @@ use Livewire\Component;
                         <div class="flex gap-2 flex-wrap items-center shrink-0">
                             
                             <button wire:click="openEdit(<?php echo e($team->id); ?>)" 
-                                    title="Tukar nama pasukan atau nama pemain di kaunter"
+                                    title="<?php echo e(__('Tukar nama pasukan atau nama pemain di kaunter')); ?>"
                                     class="inline-flex items-center gap-1.5 border border-base-300 hover:border-primary hover:text-primary text-base-content/70 text-xs font-bold px-3.5 py-2 rounded-xl transition-all hover:bg-primary/5">
-                                ✏️ Tukar Pemain
+                                ✏️ <?php echo e(__('Tukar Pemain')); ?>
+
                             </button>
 
                             <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(!$isLocked): ?>
@@ -106,20 +108,23 @@ use Livewire\Component;
                                     <button wire:click="checkIn(<?php echo e($team->id); ?>)" wire:loading.attr="disabled"
                                             class="inline-flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-sm transition-colors">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                                        Tandakan Hadir
+                                        <?php echo e(__('Tandakan Hadir')); ?>
+
                                     </button>
                                 <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                                 <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($team->status !== 'absent'): ?>
                                     <button wire:click="markAbsent(<?php echo e($team->id); ?>)" wire:loading.attr="disabled"
                                             class="inline-flex items-center gap-1.5 border-2 border-red-200 text-red-500 hover:bg-red-50 text-xs font-bold px-3.5 py-2 rounded-xl transition-colors">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                                        Tidak Hadir
+                                        <?php echo e(__('Tidak Hadir')); ?>
+
                                     </button>
                                 <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                                 <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($team->status !== 'registered'): ?>
                                     <button wire:click="undoStatus(<?php echo e($team->id); ?>)" wire:confirm="Anda pasti mahu tukar semula status pasukan ini?"
                                             class="text-xs font-medium text-base-content/40 hover:text-base-content px-2.5 py-2 rounded-xl hover:bg-base-200 transition-colors">
-                                        ↩ Undo
+                                        ↩ <?php echo e(__('Undo')); ?>
+
                                     </button>
                                 <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                             <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
@@ -134,7 +139,7 @@ use Livewire\Component;
             <div class="w-20 h-20 bg-base-200 rounded-3xl flex items-center justify-center">
                 <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
             </div>
-            <p class="text-base font-medium">Taip sekurang-kurangnya 2 huruf untuk mencari pasukan</p>
+            <p class="text-base font-medium"><?php echo e(__('Taip sekurang-kurangnya 2 huruf untuk mencari pasukan')); ?></p>
         </div>
     <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
@@ -148,8 +153,8 @@ use Livewire\Component;
                     <div class="flex items-center gap-2">
                         <span class="text-xl">✏️</span>
                         <div>
-                            <h3 class="font-bold text-base text-base-content">Kemaskini Pasukan & Tukar Pemain</h3>
-                            <p class="text-xs text-base-content/50">Pertukaran maklumat rasmi pasukan semasa semak masuk</p>
+                            <h3 class="font-bold text-base text-base-content"><?php echo e(__('Kemaskini Pasukan & Tukar Pemain')); ?></h3>
+                            <p class="text-xs text-base-content/50"><?php echo e(__('Pertukaran maklumat rasmi pasukan semasa semak masuk')); ?></p>
                         </div>
                     </div>
                     <button wire:click="closeEdit" class="text-base-content/40 hover:text-base-content text-xl font-bold p-1">✕</button>
@@ -158,7 +163,7 @@ use Livewire\Component;
                 <form wire:submit="saveTeam" class="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-xs font-bold text-base-content mb-1">Nama Pasukan <span class="text-red-500">*</span></label>
+                            <label class="block text-xs font-bold text-base-content mb-1"><?php echo e(__('Nama Pasukan')); ?> <span class="text-red-500">*</span></label>
                             <input wire:model="editTeamName" type="text" required
                                    class="w-full px-3.5 py-2 border-2 border-base-300 rounded-xl text-sm font-bold focus:border-primary focus:outline-none" />
                             <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['editTeamName'];
@@ -171,7 +176,7 @@ endif;
 unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-base-content mb-1">Nama Sekolah <span class="text-red-500">*</span></label>
+                            <label class="block text-xs font-bold text-base-content mb-1"><?php echo e(__('Nama Sekolah')); ?> <span class="text-red-500">*</span></label>
                             <input wire:model="editSchoolName" type="text" required
                                    class="w-full px-3.5 py-2 border-2 border-base-300 rounded-xl text-sm focus:border-primary focus:outline-none" />
                             <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['editSchoolName'];
@@ -187,19 +192,19 @@ unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendB
 
                     
                     <div class="bg-base-200/50 rounded-2xl p-4 space-y-3">
-                        <p class="text-[11px] font-black uppercase tracking-wider text-base-content/50">Senarai Nama Pemain</p>
+                        <p class="text-[11px] font-black uppercase tracking-wider text-base-content/50"><?php echo e(__('Senarai Nama Pemain')); ?></p>
                         <div>
-                            <label class="block text-xs font-semibold text-base-content mb-1">Pemain 1 (Kapten)</label>
+                            <label class="block text-xs font-semibold text-base-content mb-1"><?php echo e(__('Pemain 1 (Kapten)')); ?></label>
                             <input wire:model="editPlayer1" type="text" placeholder="Nama penuh pemain 1"
                                    class="w-full px-3.5 py-2 bg-white border border-base-300 rounded-xl text-sm focus:border-primary focus:outline-none" />
                         </div>
                         <div>
-                            <label class="block text-xs font-semibold text-base-content mb-1">Pemain 2</label>
+                            <label class="block text-xs font-semibold text-base-content mb-1"><?php echo e(__('Pemain 2')); ?></label>
                             <input wire:model="editPlayer2" type="text" placeholder="Nama penuh pemain 2"
                                    class="w-full px-3.5 py-2 bg-white border border-base-300 rounded-xl text-sm focus:border-primary focus:outline-none" />
                         </div>
                         <div>
-                            <label class="block text-xs font-semibold text-base-content mb-1">Pemain 3 (Rizab / Simpanan)</label>
+                            <label class="block text-xs font-semibold text-base-content mb-1"><?php echo e(__('Pemain 3 (Rizab / Simpanan)')); ?></label>
                             <input wire:model="editPlayer3" type="text" placeholder="Nama penuh pemain 3"
                                    class="w-full px-3.5 py-2 bg-white border border-base-300 rounded-xl text-sm focus:border-primary focus:outline-none" />
                         </div>
@@ -208,12 +213,12 @@ unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendB
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-xs font-semibold text-base-content mb-1">Nama Guru / Mentor</label>
+                            <label class="block text-xs font-semibold text-base-content mb-1"><?php echo e(__('Nama Guru / Mentor')); ?></label>
                             <input wire:model="editMentorName" type="text" placeholder="Nama guru pengiring"
                                    class="w-full px-3.5 py-2 border border-base-300 rounded-xl text-sm focus:border-primary focus:outline-none" />
                         </div>
                         <div>
-                            <label class="block text-xs font-semibold text-base-content mb-1">No. Telefon / Emel</label>
+                            <label class="block text-xs font-semibold text-base-content mb-1"><?php echo e(__('No. Telefon / Emel')); ?></label>
                             <input wire:model="editMentorEmail" type="text" placeholder="012-3456789"
                                    class="w-full px-3.5 py-2 border border-base-300 rounded-xl text-sm focus:border-primary focus:outline-none" />
                         </div>
@@ -221,13 +226,15 @@ unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendB
 
                     <div class="flex items-center justify-end gap-3 pt-4 border-t border-base-200">
                         <button type="button" wire:click="closeEdit" class="px-4 py-2 text-sm font-semibold text-base-content/60 hover:text-base-content rounded-xl hover:bg-base-200 transition-colors">
-                            Batal
+                            <?php echo e(__('Batal')); ?>
+
                         </button>
                         <button type="submit" wire:loading.attr="disabled"
                                 class="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-white text-sm font-bold px-5 py-2.5 rounded-xl shadow-lg transition-colors">
                             <svg wire:loading.remove wire:target="saveTeam" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                             <svg wire:loading wire:target="saveTeam" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
-                            Simpan Perubahan
+                            <?php echo e(__('Simpan Perubahan')); ?>
+
                         </button>
                     </div>
                 </form>
