@@ -96,6 +96,11 @@
         </div>
     </div>
 
+    {{-- ========================================================= --}}
+    {{-- TOURNAMENT OPERATIONS & READINESS VISUAL STATUS MONITOR   --}}
+    {{-- ========================================================= --}}
+    <livewire:admin.tournament-status-monitor :gameType="$gameType" />
+
     {{-- Category Breakdown Table --}}
     <div class="bg-white rounded-2xl border border-base-200 shadow-sm overflow-hidden">
         <div class="px-6 py-4 border-b border-base-200 flex items-center gap-3">
