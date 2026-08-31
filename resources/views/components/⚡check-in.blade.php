@@ -199,9 +199,9 @@ new class extends Component
             </div>
             <select wire:model.live="filterGame" class="border-2 border-base-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-primary bg-white transition-all">
                 <option value="">{{ __('Semua Permainan') }}</option>
-                <option value="isobot">Isobot Soccer</option>
-                <option value="sky_soccer">Drone Sky Soccer</option>
-                <option value="obstacle">Drone Obstacle</option>
+                <option value="isobot">{{ __('Isobot Soccer') }}</option>
+                <option value="sky_soccer">{{ __('Drone Sky Soccer') }}</option>
+                <option value="obstacle">{{ __('Drone Obstacle') }}</option>
             </select>
             <select wire:model.live="filterCategory" class="border-2 border-base-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-primary bg-white transition-all">
                 <option value="">{{ __('Semua Kategori') }}</option>
@@ -340,17 +340,17 @@ new class extends Component
                         <p class="text-[11px] font-black uppercase tracking-wider text-base-content/50">{{ __('Senarai Nama Pemain') }}</p>
                         <div>
                             <label class="block text-xs font-semibold text-base-content mb-1">{{ __('Pemain 1 (Kapten)') }}</label>
-                            <input wire:model="editPlayer1" type="text" placeholder="Nama penuh pemain 1"
+                            <input wire:model="editPlayer1" type="text" placeholder="{{ __('Nama penuh pemain 1') }}"
                                    class="w-full px-3.5 py-2 bg-white border border-base-300 rounded-xl text-sm focus:border-primary focus:outline-none" />
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-base-content mb-1">{{ __('Pemain 2') }}</label>
-                            <input wire:model="editPlayer2" type="text" placeholder="Nama penuh pemain 2"
+                            <input wire:model="editPlayer2" type="text" placeholder="{{ __('Nama penuh pemain 2') }}"
                                    class="w-full px-3.5 py-2 bg-white border border-base-300 rounded-xl text-sm focus:border-primary focus:outline-none" />
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-base-content mb-1">{{ __('Pemain 3 (Rizab / Simpanan)') }}</label>
-                            <input wire:model="editPlayer3" type="text" placeholder="Nama penuh pemain 3"
+                            <input wire:model="editPlayer3" type="text" placeholder="{{ __('Nama penuh pemain 3') }}"
                                    class="w-full px-3.5 py-2 bg-white border border-base-300 rounded-xl text-sm focus:border-primary focus:outline-none" />
                         </div>
                     </div>
@@ -359,12 +359,12 @@ new class extends Component
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-xs font-semibold text-base-content mb-1">{{ __('Nama Guru / Mentor') }}</label>
-                            <input wire:model="editMentorName" type="text" placeholder="Nama guru pengiring"
+                            <input wire:model="editMentorName" type="text" placeholder="{{ __('Nama guru pengiring') }}"
                                    class="w-full px-3.5 py-2 border border-base-300 rounded-xl text-sm focus:border-primary focus:outline-none" />
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-base-content mb-1">{{ __('No. Telefon / Emel') }}</label>
-                            <input wire:model="editMentorEmail" type="text" placeholder="012-3456789"
+                            <input wire:model="editMentorEmail" type="text" placeholder="{{ __('012-3456789') }}"
                                    class="w-full px-3.5 py-2 border border-base-300 rounded-xl text-sm focus:border-primary focus:outline-none" />
                         </div>
                     </div>

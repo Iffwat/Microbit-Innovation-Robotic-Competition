@@ -1,9 +1,9 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="{{ app()->getLocale() }}" data-theme="mric">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Semakan Pasukan � MIRC</title>
+    <title>{{ __('Semakan Pasukan') }} • MIRC</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -22,11 +22,11 @@
                 <div class="flex gap-1.5">
                     <div class="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center overflow-hidden">
                         <img src="{{ asset('images/company-logo.png') }}" class="w-full h-full object-contain" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" alt="">
-                        <span class="text-primary text-sm hidden">??</span>
+                        <span class="text-primary text-sm hidden">⚡</span>
                     </div>
                     <div class="w-9 h-9 rounded-lg bg-secondary/10 flex items-center justify-center overflow-hidden">
                         <img src="{{ asset('images/competition-logo.png') }}" class="w-full h-full object-contain" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" alt="">
-                        <span class="text-secondary text-sm hidden">??</span>
+                        <span class="text-secondary text-sm hidden">🤖</span>
                     </div>
                 </div>
                 <div class="hidden sm:block">
@@ -47,7 +47,7 @@
                 <a href="{{ route('admin.login') }}"
                    class="btn btn-primary btn-sm rounded-lg gap-2 text-xs font-semibold">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/></svg>
-                    Log Masuk
+                    {{ __('Log Masuk') }}
                 </a>
             </div>
         </div>
@@ -61,8 +61,8 @@
 
     {{-- Footer --}}
     <footer class="bg-white border-t border-base-200 py-5 text-center text-xs text-base-content/40">
-        <p class="font-medium">� {{ date('Y') }} Microbit Innovation Robotic Competition</p>
-        <p class="mt-1">Sistem Pengurusan Pertandingan</p>
+        <p class="font-medium">© {{ date('Y') }} Microbit Innovation Robotic Competition</p>
+        <p class="mt-1">{{ __('Sistem Pengurusan Pertandingan') }}</p>
     </footer>
 
     @livewireScripts

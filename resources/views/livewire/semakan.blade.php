@@ -256,7 +256,7 @@ new class extends Component {
                             </div>
                             <div class="relative z-10">
                                 <div class="inline-block bg-white/20 px-3 py-1 rounded-full text-xs font-bold tracking-widest uppercase mb-3 backdrop-blur-sm border border-white/20">
-                                    {{ $details['team']->category->name ?? 'Kategori Umum' }}
+                                    {{ $details['team']->category->name ?? __('Kategori Umum') }}
                                 </div>
                                 <h2 class="text-3xl font-black leading-tight">{{ $details['team']->team_name }}</h2>
                                 <p class="text-white/80 font-medium mt-1">🏫 {{ $details['team']->school_name }}</p>

@@ -1,9 +1,9 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="{{ app()->getLocale() }}" data-theme="MIRC">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Log Masuk � MIRC TMS</title>
+    <title>{{ __('Log Masuk') }} • MIRC TMS</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -24,11 +24,11 @@
             <div class="flex justify-center gap-3 mb-4">
                 <div class="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/30 overflow-hidden">
                     <img src="{{ asset('images/company-logo.png') }}" class="w-full h-full object-contain" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" alt="">
-                    <span class="text-white text-2xl hidden">??</span>
+                    <span class="text-white text-2xl hidden">⚡</span>
                 </div>
                 <div class="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/30 overflow-hidden">
                     <img src="{{ asset('images/competition-logo.png') }}" class="w-full h-full object-contain" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" alt="">
-                    <span class="text-white text-2xl hidden">??</span>
+                    <span class="text-white text-2xl hidden">🤖</span>
                 </div>
             </div>
             <h1 class="text-white font-extrabold text-xl tracking-wide">MICROBIT INNOVATION</h1>
@@ -43,8 +43,8 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
                     </svg>
                 </div>
-                <h2 class="text-xl font-bold text-base-content">Akses Admin</h2>
-                <p class="text-sm text-base-content/50 mt-1">Masukkan Kod PIN untuk meneruskan</p>
+                <h2 class="text-xl font-bold text-base-content">{{ __('Akses Admin') }}</h2>
+                <p class="text-sm text-base-content/50 mt-1">{{ __('Masukkan Kod PIN untuk meneruskan') }}</p>
             </div>
 
             @if(session('error'))
@@ -64,10 +64,10 @@
             <form action="{{ route('admin.login.post') }}" method="POST">
                 @csrf
                 <div class="mb-5">
-                    <label class="block text-xs font-semibold text-base-content/60 uppercase tracking-widest mb-2">Kod PIN</label>
+                    <label class="block text-xs font-semibold text-base-content/60 uppercase tracking-widest mb-2">{{ __('Kod PIN') }}</label>
                     <input type="password"
                            name="pin"
-                           placeholder="� � � �"
+                           placeholder="• • • •"
                            class="w-full text-center text-3xl tracking-[0.5em] font-bold border-2 border-base-300 rounded-2xl py-4 px-4 focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all placeholder:tracking-widest placeholder:text-base-content/20"
                            maxlength="4"
                            pattern="[0-9]*"
@@ -76,13 +76,13 @@
                            required />
                 </div>
                 <button type="submit" class="w-full bg-gradient-to-r from-primary to-secondary text-white font-bold py-3.5 rounded-2xl hover:opacity-90 active:scale-[0.99] transition-all shadow-lg shadow-primary/30 text-sm tracking-wide">
-                    MASUK ?
+                    {{ __('MASUK') }} →
                 </button>
             </form>
 
             <div class="mt-6 pt-5 border-t border-base-200 text-center">
                 <a href="{{ route('semakan') }}" class="text-xs text-base-content/40 hover:text-primary transition-colors">
-                    ? Kembali ke Portal Awam
+                    ← {{ __('Kembali ke Portal Awam') }}
                 </a>
             </div>
         </div>

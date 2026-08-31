@@ -269,15 +269,15 @@ new class extends Component
     <div class="flex gap-2 overflow-x-auto pb-2">
         <button wire:click="switchTab('isobot')" 
                 class="px-5 py-2.5 rounded-xl text-sm font-bold transition-all shrink-0 {{ $activeTab === 'isobot' ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20' : 'bg-white border border-base-200 text-base-content/60 hover:bg-base-200' }}">
-            🤖 Isobot Soccer
+            🤖 {{ __('Isobot Soccer') }}
         </button>
         <button wire:click="switchTab('sky_soccer')" 
                 class="px-5 py-2.5 rounded-xl text-sm font-bold transition-all shrink-0 {{ $activeTab === 'sky_soccer' ? 'bg-violet-600 text-white shadow-md shadow-violet-600/20' : 'bg-white border border-base-200 text-base-content/60 hover:bg-base-200' }}">
-            🚁 Drone Sky Soccer
+            🚁 {{ __('Drone Sky Soccer') }}
         </button>
         <button wire:click="switchTab('obstacle')" 
                 class="px-5 py-2.5 rounded-xl text-sm font-bold transition-all shrink-0 {{ $activeTab === 'obstacle' ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20' : 'bg-white border border-base-200 text-base-content/60 hover:bg-base-200' }}">
-            🏁 Drone Obstacle
+            🏁 {{ __('Drone Obstacle') }}
         </button>
     </div>
 
@@ -286,25 +286,25 @@ new class extends Component
     <div class="bg-amber-50 border-2 border-amber-300 border-dashed rounded-2xl p-4">
         <div class="flex items-center gap-2 mb-3">
             <span class="bg-amber-400 text-amber-900 text-[10px] font-extrabold px-2 py-0.5 rounded uppercase tracking-widest">DEV ONLY</span>
-            <p class="text-sm font-bold text-amber-800">Alat Pembangunan — Tidak akan muncul dalam Production</p>
+            <p class="text-sm font-bold text-amber-800">{{ __('Alat Pembangunan — Tidak akan muncul dalam Production') }}</p>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             @foreach($this->categories as $category)
             <div class="bg-white rounded-xl border border-amber-200 px-4 py-3 flex items-center justify-between gap-3">
                 <div>
                     <p class="font-bold text-sm text-base-content">{{ $category->name }}</p>
-                    <p class="text-xs text-base-content/50">{{ $category->checked_in_teams }} hadir / {{ \App\Models\Team::where('category_id', $category->id)->where('game_type', $activeTab)->count() }} jumlah</p>
+                    <p class="text-xs text-base-content/50">{{ $category->checked_in_teams }} {{ __('hadir') }} / {{ \App\Models\Team::where('category_id', $category->id)->where('game_type', $activeTab)->count() }} {{ __('jumlah') }}</p>
                 </div>
                 <div class="flex gap-2">
                     <button wire:click="devBulkCheckin({{ $category->id }})"
                             wire:loading.attr="disabled"
                             class="text-xs font-bold bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-3 py-1.5 rounded-lg transition-colors">
-                        ✓ Hadir Semua
+                        ✓ {{ __('Hadir Semua') }}
                     </button>
                     <button wire:click="devResetCheckin({{ $category->id }})"
                             wire:loading.attr="disabled"
                             class="text-xs font-bold bg-red-100 text-red-600 hover:bg-red-200 px-3 py-1.5 rounded-lg transition-colors">
-                        ↩ Reset
+                        ↩ {{ __('Reset') }}
                     </button>
                 </div>
             </div>
@@ -326,9 +326,9 @@ new class extends Component
     {{-- Header --}}
     <div class="flex items-center justify-between">
         <div>
-            <h2 class="text-xl font-extrabold text-base-content">Pengurusan Kumpulan — {{ $gameLabel }}</h2>
+            <h2 class="text-xl font-extrabold text-base-content">{{ __('Pengurusan Kumpulan') }} — {{ __($gameLabel) }}</h2>
             <p class="text-sm text-base-content/60 mt-1">
-                @if($isObstacle) Jana laluan (course) untuk pengiraan masa. @else Jana kumpulan bagi pusingan liga. @endif (Hanya pasukan yang hadir akan dijana).
+                @if($isObstacle) {{ __('Jana laluan (course) untuk pengiraan masa.') }} @else {{ __('Jana kumpulan bagi pusingan liga.') }} @endif ({{ __('Hanya pasukan yang hadir akan dijana') }}).
             </p>
         </div>
     </div>
@@ -340,7 +340,7 @@ new class extends Component
 
             @if($category->groups_count > 0)
                 <div class="absolute top-0 right-0 bg-emerald-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl uppercase tracking-widest">
-                    Telah Dijana
+                    {{ __('Telah Dijana') }}
                 </div>
             @endif
 
@@ -353,23 +353,23 @@ new class extends Component
                     <p class="text-3xl font-extrabold {{ $category->checked_in_teams > 0 ? 'text-emerald-600' : 'text-base-content/30' }}">
                         {{ $category->checked_in_teams }}
                     </p>
-                    <p class="text-[10px] text-base-content/40 uppercase tracking-widest font-bold mt-0.5">Pasukan Hadir</p>
+                    <p class="text-[10px] text-base-content/40 uppercase tracking-widest font-bold mt-0.5">{{ __('Pasukan Hadir') }}</p>
                 </div>
             </div>
 
             <div class="bg-base-200/50 rounded-xl p-4 mb-5 flex justify-between items-center">
                 <div>
-                    <p class="text-xs text-base-content/50 font-medium">@if($isObstacle) Laluan Dijana @else Saiz Kumpulan @endif</p>
-                    <p class="text-sm font-bold text-base-content">@if($isObstacle) 2 Laluan (Course) @else {{ $category->teams_per_group }} pasukan / kump. @endif</p>
+                    <p class="text-xs text-base-content/50 font-medium">@if($isObstacle) {{ __('Laluan Dijana') }} @else {{ __('Saiz Kumpulan') }} @endif</p>
+                    <p class="text-sm font-bold text-base-content">@if($isObstacle) 2 {{ __('Laluan (Course)') }} @else {{ $category->teams_per_group }} {{ __('pasukan / kump.') }} @endif</p>
                 </div>
                 <div class="text-right">
-                    <p class="text-xs text-base-content/50 font-medium">@if($isObstacle) Status Janaan @else Kumpulan Dijana @endif</p>
+                    <p class="text-xs text-base-content/50 font-medium">@if($isObstacle) {{ __('Status Janaan') }} @else {{ __('Kumpulan Dijana') }} @endif</p>
                     <p class="text-sm font-bold {{ $category->groups_count > 0 ? 'text-emerald-600' : 'text-base-content/40' }}">
-                        {{ $category->groups_count > 0 ? $category->groups_count . ($isObstacle ? ' Laluan' : ' Kumpulan') : '—' }}
+                        {{ $category->groups_count > 0 ? $category->groups_count . ' ' . ($isObstacle ? __('Laluan') : __('Kumpulan')) : '—' }}
                     </p>
                 </div>
                 <div class="text-right">
-                    <p class="text-xs text-base-content/50 font-medium">Padang</p>
+                    <p class="text-xs text-base-content/50 font-medium">{{ __('Padang') }}</p>
                     <p class="text-sm font-bold text-base-content">{{ $category->fields_count }}</p>
                 </div>
             </div>
@@ -377,22 +377,22 @@ new class extends Component
             <div class="flex gap-2">
                 @if($category->groups_count == 0)
                     <button wire:click="generateGroups({{ $category->id }})" wire:loading.attr="disabled"
-                            wire:confirm="Jana @if($isObstacle) laluan @else kumpulan @endif untuk {{ $category->name }}? Hanya pasukan yang HADIR akan dimasukkan."
+                            wire:confirm="{{ __('Jana') }} @if($isObstacle) {{ __('laluan') }} @else {{ __('kumpulan') }} @endif {{ __('untuk') }} {{ $category->name }}? {{ __('Hanya pasukan yang HADIR akan dimasukkan.') }}"
                             class="flex-1 bg-primary hover:bg-primary/90 text-white text-sm font-bold py-3 px-4 rounded-xl transition-colors flex justify-center items-center gap-2 disabled:opacity-50">
                         <span wire:loading.remove wire:target="generateGroups({{ $category->id }})">
                             <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
-                            Jana @if($isObstacle) Laluan @else Kumpulan @endif
+                            {{ __('Jana') }} @if($isObstacle) {{ __('Laluan') }} @else {{ __('Kumpulan') }} @endif
                         </span>
-                        <span wire:loading wire:target="generateGroups({{ $category->id }})">Menjana...</span>
+                        <span wire:loading wire:target="generateGroups({{ $category->id }})">{{ __('Menjana...') }}</span>
                     </button>
                 @else
                     <a href="{{ route('admin.groups.show', ['game' => $activeTab, 'category' => $category->slug]) }}"
                        class="flex-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-sm font-bold py-3 px-4 rounded-xl transition-colors flex justify-center items-center gap-2">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                        Lihat & Urus @if($isObstacle) Laluan @else Kumpulan @endif
+                        {{ __('Lihat & Urus') }} @if($isObstacle) {{ __('Laluan') }} @else {{ __('Kumpulan') }} @endif
                     </a>
                     <button wire:click="deleteGroups({{ $category->id }})"
-                            wire:confirm="AMARAN! Padam semua rekod untuk {{ $category->name }}?"
+                            wire:confirm="{{ __('AMARAN! Padam semua rekod untuk') }} {{ $category->name }}?"
                             class="bg-white border-2 border-red-200 text-red-500 hover:bg-red-50 text-sm font-bold p-3 rounded-xl transition-colors">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                     </button>

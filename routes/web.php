@@ -21,6 +21,43 @@ Route::get('/lang/{locale}', function ($locale) {
     return back();
 })->name('lang.switch');
 
+// Cache Clear Route for Shared Hosting without Terminal
+Route::get('/clear-all-cache', function () {
+    try {
+        \Illuminate\Support\Facades\Artisan::call('view:clear');
+        \Illuminate\Support\Facades\Artisan::call('cache:clear');
+        \Illuminate\Support\Facades\Artisan::call('config:clear');
+        \Illuminate\Support\Facades\Artisan::call('route:clear');
+    } catch (\Throwable $e) {
+        // Continue if DB cache table not connected
+    }
+    
+    // Force delete all cached blade files in storage/framework/views (including subdirectories)
+    $cleanDir = function($dir) use (&$cleanDir) {
+        $files = glob($dir . '/*');
+        if ($files) {
+            foreach ($files as $f) {
+                if (is_file($f) && basename($f) !== '.gitignore') {
+                    @unlink($f);
+                } elseif (is_dir($f)) {
+                    $cleanDir($f);
+                    @rmdir($f);
+                }
+            }
+        }
+    };
+    $cleanDir(storage_path('framework/views'));
+
+    return "<div style='font-family:sans-serif; text-align:center; padding:50px; background:#f0fdf4; border:2px solid #86efac; border-radius:20px; max-width:600px; margin:50px auto;'>
+        <h2 style='color:#15803d; margin-bottom:10px;'>✅ Semua Cache Berjaya Dibersihkan!</h2>
+        <p style='color:#166534; font-size:14px;'>View cache, route cache, dan config cache telah dikosongkan.</p>
+        <div style='margin-top:25px;'>
+            <a href='".route('semakan')."' style='background:#15803d; color:white; padding:10px 20px; border-radius:10px; text-decoration:none; font-weight:bold; margin-right:10px;'>Portal Semakan</a>
+            <a href='".route('admin.matches.index')."' style='background:#3b82f6; color:white; padding:10px 20px; border-radius:10px; text-decoration:none; font-weight:bold;'>Admin Perlawanan</a>
+        </div>
+    </div>";
+});
+
 // Public Route
 Route::get('/semakan', function() {
     return view('pages.semakan');

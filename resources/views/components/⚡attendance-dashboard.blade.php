@@ -81,15 +81,15 @@ new class extends Component
     <div class="flex gap-2 overflow-x-auto pb-2">
         <button wire:click="switchTab('isobot')" 
                 class="px-5 py-2.5 rounded-xl text-sm font-bold transition-all shrink-0 {{ $activeTab === 'isobot' ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20' : 'bg-white border border-base-200 text-base-content/60 hover:bg-base-200' }}">
-            🤖 Isobot Soccer
+            🤖 {{ __('Isobot Soccer') }}
         </button>
         <button wire:click="switchTab('sky_soccer')" 
                 class="px-5 py-2.5 rounded-xl text-sm font-bold transition-all shrink-0 {{ $activeTab === 'sky_soccer' ? 'bg-violet-600 text-white shadow-md shadow-violet-600/20' : 'bg-white border border-base-200 text-base-content/60 hover:bg-base-200' }}">
-            🚁 Drone Sky Soccer
+            🚁 {{ __('Drone Sky Soccer') }}
         </button>
         <button wire:click="switchTab('obstacle')" 
                 class="px-5 py-2.5 rounded-xl text-sm font-bold transition-all shrink-0 {{ $activeTab === 'obstacle' ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20' : 'bg-white border border-base-200 text-base-content/60 hover:bg-base-200' }}">
-            🏁 Drone Obstacle
+            🏁 {{ __('Drone Obstacle') }}
         </button>
     </div>
 

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Sistem Pengurusan Pertandingan Microbit Innovation Robotic Competition">
-    <title>@yield('title', 'Papan Pemuka') � MIRC TMS</title>
+    <title>@yield('title', __('Papan Pemuka')) • MIRC TMS</title>
 
     {{-- Fonts --}}
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -33,7 +33,7 @@
             </div>
 
             <div class="navbar-center hidden lg:flex">
-                <h1 class="text-base font-semibold text-base-content/60 tracking-wide">@yield('page-title', 'Papan Pemuka')</h1>
+                <h1 class="text-base font-semibold text-base-content/60 tracking-wide">@yield('page-title', __('Papan Pemuka'))</h1>
             </div>
 
             <div class="navbar-end gap-3">

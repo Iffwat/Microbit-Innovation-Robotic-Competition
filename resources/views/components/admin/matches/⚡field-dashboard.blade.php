@@ -374,7 +374,7 @@ new class extends Component
                                     </div>
                                     <span class="text-[10px] font-bold text-base-content/40 uppercase mt-1">{{ __('Keputusan Rasmi') }}</span>
                                 @else
-                                    <div class="w-10 h-10 rounded-full bg-base-200 flex items-center justify-center text-xs font-black text-base-content/40">VS</div>
+                                    <div class="w-10 h-10 rounded-full bg-base-200 flex items-center justify-center text-xs font-black text-base-content/40">{{ __('VS') }}</div>
                                 @endif
                             </div>
 
@@ -504,11 +504,11 @@ new class extends Component
                                         <div>
                                             <label class="block text-xs font-bold text-base-content/50 uppercase tracking-widest mb-2">{{ __('Masa Larian 1') }}</label>
                                             <div class="flex gap-2">
-                                                <input type="number" wire:model.live="obsMinutes1" min="0" placeholder="Min" class="w-full text-center text-xl font-black py-3 rounded-xl border-2 border-base-300 focus:border-primary focus:ring-4 focus:ring-primary/10">
+                                                <input type="number" wire:model.live="obsMinutes1" min="0" placeholder="{{ __('Min') }}" class="w-full text-center text-xl font-black py-3 rounded-xl border-2 border-base-300 focus:border-primary focus:ring-4 focus:ring-primary/10">
                                                 <span class="text-2xl font-bold text-base-content/30 py-2">:</span>
-                                                <input type="number" wire:model.live="obsSeconds1" min="0" max="59" placeholder="Sec" class="w-full text-center text-xl font-black py-3 rounded-xl border-2 border-base-300 focus:border-primary focus:ring-4 focus:ring-primary/10">
+                                                <input type="number" wire:model.live="obsSeconds1" min="0" max="59" placeholder="{{ __('Sec') }}" class="w-full text-center text-xl font-black py-3 rounded-xl border-2 border-base-300 focus:border-primary focus:ring-4 focus:ring-primary/10">
                                                 <span class="text-2xl font-bold text-base-content/30 py-2">.</span>
-                                                <input type="number" wire:model.live="obsMilliseconds1" min="0" max="999" placeholder="Ms" class="w-full text-center text-xl font-black py-3 rounded-xl border-2 border-base-300 focus:border-primary focus:ring-4 focus:ring-primary/10">
+                                                <input type="number" wire:model.live="obsMilliseconds1" min="0" max="999" placeholder="{{ __('Ms') }}" class="w-full text-center text-xl font-black py-3 rounded-xl border-2 border-base-300 focus:border-primary focus:ring-4 focus:ring-primary/10">
                                             </div>
                                         </div>
                                         <div class="pt-4 border-t border-base-200">
@@ -526,11 +526,11 @@ new class extends Component
                                         <div>
                                             <label class="block text-xs font-bold text-base-content/50 uppercase tracking-widest mb-2">{{ __('Masa Larian 2') }}</label>
                                             <div class="flex gap-2">
-                                                <input type="number" wire:model.live="obsMinutes2" min="0" placeholder="Min" class="w-full text-center text-xl font-black py-3 rounded-xl border-2 border-base-300 focus:border-primary focus:ring-4 focus:ring-primary/10">
+                                                <input type="number" wire:model.live="obsMinutes2" min="0" placeholder="{{ __('Min') }}" class="w-full text-center text-xl font-black py-3 rounded-xl border-2 border-base-300 focus:border-primary focus:ring-4 focus:ring-primary/10">
                                                 <span class="text-2xl font-bold text-base-content/30 py-2">:</span>
-                                                <input type="number" wire:model.live="obsSeconds2" min="0" max="59" placeholder="Sec" class="w-full text-center text-xl font-black py-3 rounded-xl border-2 border-base-300 focus:border-primary focus:ring-4 focus:ring-primary/10">
+                                                <input type="number" wire:model.live="obsSeconds2" min="0" max="59" placeholder="{{ __('Sec') }}" class="w-full text-center text-xl font-black py-3 rounded-xl border-2 border-base-300 focus:border-primary focus:ring-4 focus:ring-primary/10">
                                                 <span class="text-2xl font-bold text-base-content/30 py-2">.</span>
-                                                <input type="number" wire:model.live="obsMilliseconds2" min="0" max="999" placeholder="Ms" class="w-full text-center text-xl font-black py-3 rounded-xl border-2 border-base-300 focus:border-primary focus:ring-4 focus:ring-primary/10">
+                                                <input type="number" wire:model.live="obsMilliseconds2" min="0" max="999" placeholder="{{ __('Ms') }}" class="w-full text-center text-xl font-black py-3 rounded-xl border-2 border-base-300 focus:border-primary focus:ring-4 focus:ring-primary/10">
                                             </div>
                                         </div>
                                         <div class="pt-4 border-t border-base-200">
@@ -580,9 +580,9 @@ new class extends Component
                                     <p class="text-xs font-bold text-base-content/50 uppercase tracking-widest mb-2">{{ __('Jam Perlawanan (Bantuan)') }}</p>
                                     <div class="text-5xl font-black text-base-content tabular-nums mb-3" x-text="stopwatch.format()">00:00</div>
                                     <div class="flex items-center justify-center gap-2">
-                                        <button x-on:click="stopwatch.start()" x-show="!stopwatch.running" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded-lg text-sm font-bold shadow-sm">Start</button>
-                                        <button x-on:click="stopwatch.pause()" x-show="stopwatch.running" style="display:none;" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-1.5 rounded-lg text-sm font-bold shadow-sm">Pause</button>
-                                        <button x-on:click="stopwatch.reset()" class="bg-rose-500 hover:bg-rose-600 text-white px-4 py-1.5 rounded-lg text-sm font-bold shadow-sm">Stop</button>
+                                        <button x-on:click="stopwatch.start()" x-show="!stopwatch.running" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded-lg text-sm font-bold shadow-sm">{{ __('Start') }}</button>
+                                        <button x-on:click="stopwatch.pause()" x-show="stopwatch.running" style="display:none;" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-1.5 rounded-lg text-sm font-bold shadow-sm">{{ __('Pause') }}</button>
+                                        <button x-on:click="stopwatch.reset()" class="bg-rose-500 hover:bg-rose-600 text-white px-4 py-1.5 rounded-lg text-sm font-bold shadow-sm">{{ __('Stop') }}</button>
                                     </div>
                                 </div>
                                 
