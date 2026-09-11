@@ -1237,11 +1237,74 @@ new class extends Component {
     </div>
 
     {{-- ========================================================== --}}
-    {{-- CALLING OVERLAY (PANGGILAN PASUKAN)                        --}}
+    {{-- ========================================================== --}}
+    {{-- CALLING OVERLAY (PANGGILAN PASUKAN) DENGAN PENGGERA AUDIO  --}}
     {{-- ========================================================== --}}
     @php $callingMatches = $this->calledMatches(); @endphp
     @if(count($callingMatches) > 0)
-        <div class="fixed inset-0 z-50 bg-black/90 backdrop-blur-2xl flex items-center justify-center p-10">
+        <div x-data="{
+                playAlarm() {
+                    try {
+                        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                        if (!AudioCtx) return;
+                        if (!window._mircAudioCtx) {
+                            window._mircAudioCtx = new AudioCtx();
+                        }
+                        const ctx = window._mircAudioCtx;
+                        if (ctx.state === 'suspended') {
+                            ctx.resume();
+                        }
+
+                        const now = ctx.currentTime;
+
+                        // Master lowpass filter and gain for crisp, pleasant alert presence
+                        const filter = ctx.createBiquadFilter();
+                        filter.type = 'lowpass';
+                        filter.frequency.setValueAtTime(3500, now);
+                        filter.connect(ctx.destination);
+
+                        const masterGain = ctx.createGain();
+                        masterGain.gain.setValueAtTime(0.85, now);
+                        masterGain.connect(filter);
+
+                        // Really really short alert: snappy, high-attention double chime (total duration ~0.22s)
+                        const notes = [
+                            { freq: 880,  start: 0,    dur: 0.07 }, // Note 1: 880Hz (70ms)
+                            { freq: 1320, start: 0.09, dur: 0.12 }  // Note 2: 1320Hz (120ms)
+                        ];
+
+                        notes.forEach(n => {
+                            const t = now + n.start;
+                            const osc = ctx.createOscillator();
+                            const gain = ctx.createGain();
+
+                            osc.type = 'triangle';
+                            osc.frequency.setValueAtTime(n.freq, t);
+
+                            gain.gain.setValueAtTime(0.0001, t);
+                            gain.gain.exponentialRampToValueAtTime(0.85, t + 0.008);
+                            gain.gain.setValueAtTime(0.85, t + n.dur - 0.02);
+                            gain.gain.exponentialRampToValueAtTime(0.0001, t + n.dur);
+
+                            osc.connect(gain);
+                            gain.connect(masterGain);
+
+                            osc.start(t);
+                            osc.stop(t + n.dur + 0.01);
+                        });
+
+                    } catch (e) {
+                        console.warn('Live TV Audio alert error:', e);
+                    }
+                },
+                init() {
+                    // Play single alarm chime when overlay appears
+                    this.playAlarm();
+                }
+            }"
+            x-init="init()"
+            @click="if (window._mircAudioCtx && window._mircAudioCtx.state === 'suspended') window._mircAudioCtx.resume()"
+            class="fixed inset-0 z-50 bg-black/90 backdrop-blur-2xl flex items-center justify-center p-10 animate-fade-in">
             <div class="w-full max-w-5xl flex flex-col items-center gap-8">
                 <div class="flex items-center gap-5">
                     <svg class="w-12 h-12 text-yellow-400 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
@@ -1293,7 +1356,13 @@ new class extends Component {
                         </div>
                     @endforeach
                 </div>
-                <p class="text-xs font-black text-yellow-400/80 tracking-[0.25em] uppercase animate-pulse">Sila segera lapor diri ke padang yang ditetapkan</p>
+                
+                {{-- Bottom Status Notice --}}
+                <div class="text-center">
+                    <p class="text-xs font-black text-yellow-400/80 tracking-[0.25em] uppercase animate-pulse">
+                        🚨 Sila segera lapor diri ke padang yang ditetapkan 🚨
+                    </p>
+                </div>
             </div>
         </div>
     @endif

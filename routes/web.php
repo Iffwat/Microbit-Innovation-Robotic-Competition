@@ -32,7 +32,34 @@ Route::get('/clear-all-cache', function () {
         // Continue if DB cache table not connected
     }
     
-    // Force delete all cached blade files in storage/framework/views (including subdirectories)
+    // 1. Remove old/corrupted unicode or zap files (⚡ or тЪб or ?) that block clean updates on Linux
+    $targetDirs = [
+        resource_path('views/components/admin/matches'),
+        resource_path('views/components/admin/groups'),
+        resource_path('views/components'),
+        resource_path('views/livewire/admin/matches'),
+        resource_path('views/livewire/admin/groups'),
+        resource_path('views/livewire'),
+    ];
+    $removedLegacyFiles = [];
+    foreach ($targetDirs as $d) {
+        if (!is_dir($d)) continue;
+        $scan = @scandir($d);
+        if (!$scan) continue;
+        foreach ($scan as $file) {
+            if ($file === '.' || $file === '..') continue;
+            // Match any file containing non-ASCII character (⚡, тЪб, etc.) or leading question mark
+            if (preg_match('/[^\x20-\x7E]/', $file) || str_starts_with($file, '?')) {
+                $filePath = $d . '/' . $file;
+                if (is_file($filePath)) {
+                    @unlink($filePath);
+                    $removedLegacyFiles[] = $file;
+                }
+            }
+        }
+    }
+
+    // 2. Force delete all cached blade files in storage/framework/views (including subdirectories)
     $cleanDir = function($dir) use (&$cleanDir) {
         $files = glob($dir . '/*');
         if ($files) {
@@ -48,9 +75,15 @@ Route::get('/clear-all-cache', function () {
     };
     $cleanDir(storage_path('framework/views'));
 
+    $removedCount = count($removedLegacyFiles);
+    $extraMsg = $removedCount > 0 
+        ? "<p style='color:#047857; font-size:12px; margin-top:6px;'>Dibersihkan $removedCount fail legasi lama/unicode: " . htmlspecialchars(implode(', ', array_slice($removedLegacyFiles, 0, 5))) . "</p>"
+        : "";
+
     return "<div style='font-family:sans-serif; text-align:center; padding:50px; background:#f0fdf4; border:2px solid #86efac; border-radius:20px; max-width:600px; margin:50px auto;'>
-        <h2 style='color:#15803d; margin-bottom:10px;'>✅ Semua Cache Berjaya Dibersihkan!</h2>
-        <p style='color:#166534; font-size:14px;'>View cache, route cache, dan config cache telah dikosongkan.</p>
+        <h2 style='color:#15803d; margin-bottom:10px;'>✅ Semua Cache & Fail Lama Berjaya Dibersihkan!</h2>
+        <p style='color:#166534; font-size:14px;'>View cache, route cache, config cache, dan fail bertindih telah dikosongkan.</p>
+        $extraMsg
         <div style='margin-top:25px;'>
             <a href='".route('semakan')."' style='background:#15803d; color:white; padding:10px 20px; border-radius:10px; text-decoration:none; font-weight:bold; margin-right:10px;'>Portal Semakan</a>
             <a href='".route('admin.matches.index')."' style='background:#3b82f6; color:white; padding:10px 20px; border-radius:10px; text-decoration:none; font-weight:bold;'>Admin Perlawanan</a>

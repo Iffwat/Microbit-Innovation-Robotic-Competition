@@ -114,4 +114,18 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Tournament Management Access PINs (Master & Volunteer)
+    |--------------------------------------------------------------------------
+    |
+    | PINs are securely fetched from the environment (.env).
+    | Supports plain text PIN or Bcrypt hash (starts with $2y$).
+    |
+    */
+    'pins' => [
+        'master'    => env('MASTER_PIN'),
+        'volunteer' => env('VOLUNTEER_PIN'),
+    ],
+
 ];

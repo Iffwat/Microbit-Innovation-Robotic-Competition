@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ms" data-theme="dark">
 <head>
     <meta charset="UTF-8">
@@ -37,6 +37,8 @@
                 <div class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></div>
                 <span class="text-red-400 text-sm font-black tracking-widest uppercase">Secara Langsung</span>
             </div>
+
+
             <div class="text-right">
                 <p class="text-2xl font-black text-white" x-data="{ time: new Date().toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit'}) }" x-init="setInterval(() => time = new Date().toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit'}), 1000)" x-text="time"></p>
                 <p class="text-white/50 text-xs font-bold uppercase tracking-widest" x-data="{ date: new Date().toLocaleDateString('ms-MY', {weekday: 'long', day: 'numeric', month: 'long'}) }" x-text="date"></p>
@@ -50,5 +52,21 @@
     </main>
 
     @livewireScripts
+    <script>
+        (function() {
+            const unlock = () => {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!window._mircAudioCtx && AudioCtx) {
+                    window._mircAudioCtx = new AudioCtx();
+                }
+                if (window._mircAudioCtx && window._mircAudioCtx.state === 'suspended') {
+                    window._mircAudioCtx.resume();
+                }
+            };
+            window.addEventListener('click', unlock, { once: true });
+            window.addEventListener('keydown', unlock, { once: true });
+            window.addEventListener('touchstart', unlock, { once: true });
+        })();
+    </script>
 </body>
 </html>
