@@ -24,6 +24,13 @@ new class extends Component
     public string $newGroupName = '';
     public string $newGroupLetter = '';
     public ?string $newGroupField = null;
+
+    // Playoff Modal State
+    public bool $showPlayoffModal = false;
+    public ?int $playoffGroupId = null;
+    public ?int $playoffTeam1Id = null;
+    public ?int $playoffTeam2Id = null;
+    public ?string $playoffFieldNumber = null;
     
     public function mount($gameType, $categorySlug)
     {
@@ -547,6 +554,143 @@ new class extends Component
             $this->js("alert('Ralat: {$e->getMessage()}');");
         }
     }
+
+    public function getTiedPairs(Group $group): array
+    {
+        if ($group->game_type === 'obstacle') return [];
+        $standings = $group->getStandings();
+        $tied = [];
+        $count = count($standings);
+        for ($i = 0; $i < $count - 1; $i++) {
+            $a = $standings[$i];
+            $b = $standings[$i + 1];
+            if ($a->played > 0 && $b->played > 0 &&
+                $a->points === $b->points &&
+                $a->won === $b->won &&
+                $a->goals_for === $b->goals_for &&
+                $a->goal_difference === $b->goal_difference &&
+                $a->goals_against === $b->goals_against) {
+
+                $hasCompletedPlayoff = TournamentMatch::where('group_id', $group->id)
+                    ->where('status', 'completed')
+                    ->where(function($q) {
+                        $q->where('round_name', 'like', '%Play-off%')
+                          ->orWhere('round_name', 'like', '%Penentuan%');
+                    })
+                    ->where(function($q) use ($a, $b) {
+                        $q->where(function($sub) use ($a, $b) {
+                            $sub->where('home_team_id', $a->team_id)->where('away_team_id', $b->team_id);
+                        })->orWhere(function($sub) use ($a, $b) {
+                            $sub->where('home_team_id', $b->team_id)->where('away_team_id', $a->team_id);
+                        });
+                    })
+                    ->whereNotNull('winner_team_id')
+                    ->exists();
+
+                $hasManualPosition = ($a->position > 0 && $b->position > 0 && $a->position !== $b->position);
+
+                $tied[] = [
+                    'team1' => $a,
+                    'team2' => $b,
+                    'rank1' => $i + 1,
+                    'rank2' => $i + 2,
+                    'resolved' => ($hasCompletedPlayoff || $hasManualPosition),
+                ];
+            }
+        }
+        return $tied;
+    }
+
+    public function openPlayoffModal(int $groupId, ?int $t1 = null, ?int $t2 = null): void
+    {
+        $group = Group::where('id', $groupId)->where('category_id', $this->category->id)->firstOrFail();
+        $this->playoffGroupId = $groupId;
+        $this->playoffTeam1Id = $t1;
+        $this->playoffTeam2Id = $t2;
+        $this->playoffFieldNumber = $group->field_number ?? ($this->gameType === 'sky_soccer' ? 'Arena Sky Soccer' : '1');
+        $this->showPlayoffModal = true;
+    }
+
+    public function closePlayoffModal(): void
+    {
+        $this->showPlayoffModal = false;
+        $this->playoffGroupId = null;
+        $this->playoffTeam1Id = null;
+        $this->playoffTeam2Id = null;
+        $this->playoffFieldNumber = null;
+    }
+
+    public function createPlayoffMatch(): void
+    {
+        $this->validate([
+            'playoffGroupId' => 'required|exists:groups,id',
+            'playoffTeam1Id' => 'required|exists:teams,id|different:playoffTeam2Id',
+            'playoffTeam2Id' => 'required|exists:teams,id',
+        ], [
+            'playoffTeam1Id.required' => 'Sila pilih Pasukan 1.',
+            'playoffTeam2Id.required' => 'Sila pilih Pasukan 2.',
+            'playoffTeam1Id.different' => 'Pasukan 1 dan Pasukan 2 mestilah berbeza.',
+        ]);
+
+        $group = Group::where('id', $this->playoffGroupId)->where('category_id', $this->category->id)->firstOrFail();
+
+        TournamentMatch::create([
+            'category_id' => $this->category->id,
+            'group_id' => $group->id,
+            'stage' => 'group',
+            'round_name' => 'Perlawanan Penentuan (Play-off)',
+            'home_team_id' => $this->playoffTeam1Id,
+            'away_team_id' => $this->playoffTeam2Id,
+            'field_number' => $this->playoffFieldNumber ?: ($group->field_number ?? null),
+            'status' => 'scheduled',
+        ]);
+
+        $team1 = Team::find($this->playoffTeam1Id);
+        $team2 = Team::find($this->playoffTeam2Id);
+        $t1Name = $team1 ? $team1->team_name : 'Pasukan 1';
+        $t2Name = $team2 ? $team2->team_name : 'Pasukan 2';
+        $fName = $this->playoffFieldNumber ? "Padang {$this->playoffFieldNumber}" : 'Padang ditetapkan';
+
+        $this->closePlayoffModal();
+        $this->js("alert('Perlawanan Penentuan ({$t1Name} vs {$t2Name}) berjaya dicipta untuk {$fName}! Pengadil boleh memasukkan keputusan di Field Dashboard.');");
+    }
+
+    public function swapTeamPosition(int $groupTeamId1, int $groupTeamId2): void
+    {
+        $gt1 = GroupTeam::where('id', $groupTeamId1)->firstOrFail();
+        $gt2 = GroupTeam::where('id', $groupTeamId2)->firstOrFail();
+
+        if ($gt1->group_id !== $gt2->group_id) return;
+
+        $group = $gt1->group;
+        $standings = $group->getStandings();
+
+        // Initialize positions if not set
+        $posMap = [];
+        foreach ($standings as $idx => $s) {
+            $posMap[$s->id] = $idx + 1;
+        }
+
+        $pos1 = $gt1->position > 0 ? $gt1->position : ($posMap[$gt1->id] ?? 1);
+        $pos2 = $gt2->position > 0 ? $gt2->position : ($posMap[$gt2->id] ?? 2);
+
+        // If they were equal, ensure one is lower and one is higher
+        if ($pos1 === $pos2) {
+            $pos1 = min($posMap[$gt1->id] ?? 1, $posMap[$gt2->id] ?? 2);
+            $pos2 = max($posMap[$gt1->id] ?? 1, $posMap[$gt2->id] ?? 2);
+            if ($pos1 === $pos2) $pos2 = $pos1 + 1;
+        }
+
+        // Swap
+        $gt1->position = $pos2;
+        $gt2->position = $pos1;
+        $gt1->save();
+        $gt2->save();
+
+        $t1Name = $gt1->team ? $gt1->team->team_name : 'Pasukan 1';
+        $t2Name = $gt2->team ? $gt2->team->team_name : 'Pasukan 2';
+        $this->js("alert('Kedudukan {$t1Name} dan {$t2Name} telah berjaya ditukar!');");
+    }
 };
 ?>
 
@@ -642,8 +786,15 @@ new class extends Component
                     <div class="bg-base-200/50 px-5 py-3 border-b border-base-200 flex flex-col gap-2">
                         <div class="flex justify-between items-center">
                             <h3 class="font-extrabold text-lg text-primary">{{ $group->group_name }}</h3>
-                            <div class="flex items-center gap-2">
+                            <div class="flex items-center gap-1.5 flex-wrap">
                                 <span class="text-xs font-bold bg-white px-2.5 py-1 rounded-full text-base-content/60 shadow-sm">{{ $group->groupTeams->count() }} {{ __('Pasukan') }}</span>
+                                @if(!$isObstacle && $group->groupTeams->count() >= 2)
+                                    <button wire:click="openPlayoffModal({{ $group->id }})" 
+                                            class="text-xs font-bold text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-lg transition-colors flex items-center gap-1 shadow-2xs"
+                                            title="{{ __('Jana Perlawanan Penentuan (Play-off) untuk kumpulan ini') }}">
+                                        ⚔️ {{ __('Play-off') }}
+                                    </button>
+                                @endif
                                 @if($this->unassignedTeams->isNotEmpty())
                                     <button wire:click="openAddLateTeamModal({{ $group->id }})" 
                                             class="text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-0.5 rounded-lg transition-colors flex items-center gap-1 shadow-2xs"
@@ -688,6 +839,39 @@ new class extends Component
                         @endif
                     </div>
                     
+                    {{-- Tie Detection Banner --}}
+                    @php $tiedPairs = $this->getTiedPairs($group); @endphp
+                    @foreach($tiedPairs as $pair)
+                        <div class="px-3.5 py-2.5 border-t border-b {{ $pair['resolved'] ? 'bg-emerald-50/80 border-emerald-200 text-emerald-900' : 'bg-amber-50 border-amber-300 text-amber-900' }} flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-1.5 flex-wrap">
+                                    @if($pair['resolved'])
+                                        <span class="font-black bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded-md text-[9px] uppercase tracking-wider">✓ Kedudukan Ditentukan</span>
+                                    @else
+                                        <span class="font-black bg-amber-200 text-amber-900 px-2 py-0.5 rounded-md text-[9px] uppercase tracking-wider animate-pulse">⚠️ Seri Sempurna (#{{ $pair['rank1'] }} &amp; #{{ $pair['rank2'] }})</span>
+                                    @endif
+                                    <span class="font-black text-xs">{{ $pair['team1']->team->team_name }}</span>
+                                    <span class="text-base-content/40 font-bold">&amp;</span>
+                                    <span class="font-black text-xs">{{ $pair['team2']->team->team_name }}</span>
+                                </div>
+                                <p class="text-[10px] text-base-content/60 mt-0.5">
+                                    {{ $pair['team1']->points }} mata &middot; {{ $pair['team1']->won }}M &middot; {{ $pair['team1']->goals_for }} jaringan &middot; {{ $pair['team1']->goals_against }} bolos
+                                </p>
+                            </div>
+                            <div class="flex items-center gap-1.5 shrink-0">
+                                <button wire:click="openPlayoffModal({{ $group->id }}, {{ $pair['team1']->team_id }}, {{ $pair['team2']->team_id }})" 
+                                        class="bg-amber-600 hover:bg-amber-700 text-white font-bold px-2.5 py-1 rounded-lg text-[11px] flex items-center gap-1 transition-colors shadow-xs">
+                                    ⚔️ {{ __('Jana Play-off') }}
+                                </button>
+                                <button wire:click="swapTeamPosition({{ $pair['team1']->id }}, {{ $pair['team2']->id }})" 
+                                        class="bg-white border border-amber-300 hover:bg-amber-100 text-amber-900 font-bold px-2.5 py-1 rounded-lg text-[11px] flex items-center gap-1 transition-colors shadow-xs"
+                                        title="{{ __('Tukar kedudukan antara dua pasukan ini secara manual') }}">
+                                    🔄 {{ __('Tukar Posisi') }}
+                                </button>
+                            </div>
+                        </div>
+                    @endforeach
+
                     <div class="flex-1 p-0">
                         @if($group->groupTeams->isEmpty())
                             <div class="p-6 text-center text-xs text-base-content/40 italic">
@@ -700,20 +884,41 @@ new class extends Component
                             <table class="w-full text-sm">
                                 <thead class="bg-base-100 border-b border-base-200">
                                     <tr>
-                                        <th class="text-left py-2 px-4 text-[10px] font-bold text-base-content/40 uppercase tracking-widest w-8">#</th>
-                                        <th class="text-left py-2 px-4 text-[10px] font-bold text-base-content/40 uppercase tracking-widest">{{ __('Pasukan') }}</th>
-                                        <th class="text-right py-2 px-4 text-[10px] font-bold text-base-content/40 uppercase tracking-widest w-12">{{ __('Tindakan') }}</th>
+                                        <th class="text-left py-2 px-3 text-[10px] font-bold text-base-content/40 uppercase tracking-widest w-7">#</th>
+                                        <th class="text-left py-2 px-3 text-[10px] font-bold text-base-content/40 uppercase tracking-widest">{{ __('Pasukan') }}</th>
+                                        @if(!$isObstacle)
+                                            <th class="text-center py-2 px-2 text-[10px] font-bold text-base-content/40 uppercase tracking-widest w-8" title="Menang">M</th>
+                                            <th class="text-center py-2 px-2 text-[10px] font-bold text-base-content/40 uppercase tracking-widest w-9" title="Perbezaan Gol">+/-</th>
+                                            <th class="text-center py-2 px-2 text-[10px] font-bold text-primary uppercase tracking-widest w-9" title="Mata">PT</th>
+                                        @endif
+                                        <th class="text-right py-2 px-3 text-[10px] font-bold text-base-content/40 uppercase tracking-widest w-10">{{ __('Tindakan') }}</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-base-100">
-                                    @foreach($group->groupTeams as $idx => $gt)
+                                    @foreach(($isObstacle ? $group->groupTeams : $group->getStandings()) as $idx => $gt)
                                         <tr class="hover:bg-base-50 transition-colors group/row">
-                                            <td class="py-3 px-4 text-xs font-semibold text-base-content/30">{{ $idx + 1 }}</td>
-                                            <td class="py-3 px-4">
-                                                <p class="font-bold text-base-content">{{ $gt->team->team_name }}</p>
+                                            <td class="py-2.5 px-3 text-xs font-bold {{ $idx < 2 && !$isObstacle ? 'text-primary font-black' : 'text-base-content/40' }}">{{ $idx + 1 }}</td>
+                                            <td class="py-2.5 px-3">
+                                                <div class="flex items-center gap-1.5 flex-wrap">
+                                                    <p class="font-bold text-base-content leading-tight">{{ $gt->team->team_name }}</p>
+                                                    @if(!$isObstacle)
+                                                        @if($idx === 0)
+                                                            <span class="text-[9px] font-black bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded">1st</span>
+                                                        @elseif($idx === 1)
+                                                            <span class="text-[9px] font-black bg-slate-200 text-slate-700 px-1.5 py-0.2 rounded">2nd</span>
+                                                        @endif
+                                                    @endif
+                                                </div>
                                                 <p class="text-[10px] text-base-content/50 mt-0.5 leading-tight">🏫 {{ $gt->team->school_name }}</p>
                                             </td>
-                                            <td class="py-3 px-4 text-right">
+                                            @if(!$isObstacle)
+                                                <td class="py-2.5 px-2 text-center text-xs font-semibold text-base-content/70">{{ $gt->won }}</td>
+                                                <td class="py-2.5 px-2 text-center text-xs font-semibold {{ $gt->goal_difference > 0 ? 'text-emerald-600' : ($gt->goal_difference < 0 ? 'text-red-500' : 'text-base-content/40') }}">
+                                                    {{ $gt->goal_difference > 0 ? '+' : '' }}{{ $gt->goal_difference }}
+                                                </td>
+                                                <td class="py-2.5 px-2 text-center text-xs font-black text-primary">{{ $gt->points }}</td>
+                                            @endif
+                                            <td class="py-2.5 px-3 text-right">
                                                 <button wire:click="removeTeamFromGroup({{ $group->id }}, {{ $gt->team->id }})"
                                                         wire:confirm="{{ __('Anda pasti mahu mengeluarkan pasukan') }} {{ $gt->team->team_name }} {{ __('daripada') }} {{ $group->group_name }}?"
                                                         class="opacity-0 group-hover/row:opacity-100 text-red-400 hover:text-red-600 p-1 rounded-lg hover:bg-red-50 transition-all"
@@ -878,6 +1083,83 @@ new class extends Component
                         <span wire:loading wire:target="addLateTeam">{{ __('Memproses...') }}</span>
                     </button>
                     @endif
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Play-off Match Creation Modal --}}
+    @if($showPlayoffModal)
+        @php
+            $playoffGroup = \App\Models\Group::with('groupTeams.team')->find($playoffGroupId);
+        @endphp
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+            <div class="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-slide-up border border-base-200">
+                <div class="p-6 border-b border-base-200 bg-gradient-to-r from-amber-50 to-orange-50 flex justify-between items-center">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center font-black text-lg shadow-md shadow-amber-500/30">
+                            ⚔️
+                        </div>
+                        <div>
+                            <h3 class="font-black text-lg text-base-content">{{ __('Perlawanan Penentuan (Play-off)') }}</h3>
+                            <p class="text-xs text-base-content/60">{{ $playoffGroup ? $playoffGroup->group_name : '' }} &middot; {{ $category->name }}</p>
+                        </div>
+                    </div>
+                    <button wire:click="closePlayoffModal" class="w-8 h-8 rounded-full bg-base-200 text-base-content/50 hover:text-base-content flex items-center justify-center font-bold">✕</button>
+                </div>
+
+                <div class="p-6 space-y-4">
+                    <div class="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-xs text-blue-800 leading-relaxed">
+                        ℹ️ <strong>{{ __('Perlawanan Penentuan:') }}</strong> {{ __('Perlawanan ini akan dijana ke Padang pilihan dan dihantar ke Field Dashboard pengadil. Pemenang perlawanan penentuan akan automatik diletakkan di atas pasukan yang kalah dalam kedudukan kumpulan tanpa merosakkan statistik gol liga.') }}
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="space-y-1.5">
+                            <label class="text-xs font-bold text-base-content uppercase tracking-wider">{{ __('Pasukan 1 (Home):') }}</label>
+                            <select wire:model="playoffTeam1Id" class="select select-bordered w-full rounded-xl text-sm font-semibold bg-white focus:border-primary">
+                                <option value="">-- {{ __('Pilih Pasukan') }} --</option>
+                                @if($playoffGroup)
+                                    @foreach($playoffGroup->groupTeams as $gt)
+                                        <option value="{{ $gt->team_id }}">{{ $gt->team->team_name }}</option>
+                                    @endforeach
+                                @endif
+                            </select>
+                            @error('playoffTeam1Id') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <label class="text-xs font-bold text-base-content uppercase tracking-wider">{{ __('Pasukan 2 (Away):') }}</label>
+                            <select wire:model="playoffTeam2Id" class="select select-bordered w-full rounded-xl text-sm font-semibold bg-white focus:border-primary">
+                                <option value="">-- {{ __('Pilih Pasukan') }} --</option>
+                                @if($playoffGroup)
+                                    @foreach($playoffGroup->groupTeams as $gt)
+                                        <option value="{{ $gt->team_id }}">{{ $gt->team->team_name }}</option>
+                                    @endforeach
+                                @endif
+                            </select>
+                            @error('playoffTeam2Id') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+                        </div>
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-base-content uppercase tracking-wider">{{ __('Lokasi Padang:') }}</label>
+                        <select wire:model="playoffFieldNumber" class="select select-bordered w-full rounded-xl text-sm font-semibold bg-white focus:border-primary">
+                            <option value="">-- {{ __('Pilih Padang') }} --</option>
+                            @for($i=1; $i<=15; $i++)
+                                <option value="{{ $i }}">{{ __('Padang') }} {{ $i }}</option>
+                            @endfor
+                            <option value="Arena Sky Soccer">Arena Sky Soccer</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="p-4 border-t border-base-200 bg-base-50 flex justify-end gap-2">
+                    <button wire:click="closePlayoffModal" class="px-5 py-2.5 bg-base-200 hover:bg-base-300 text-base-content font-bold rounded-xl transition-colors text-sm">
+                        {{ __('Batal') }}
+                    </button>
+                    <button wire:click="createPlayoffMatch" class="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl transition-colors text-sm flex items-center gap-2 shadow-sm">
+                        ⚔️ {{ __('Cipta Perlawanan Penentuan') }}
+                    </button>
                 </div>
             </div>
         </div>

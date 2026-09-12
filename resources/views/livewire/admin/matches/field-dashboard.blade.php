@@ -895,7 +895,13 @@ new class extends Component
                     <div class="md:w-48 bg-base-200/50 p-4 border-b md:border-b-0 md:border-r border-base-200 flex flex-col justify-center">
                         <span class="text-[10px] font-black uppercase tracking-widest text-primary mb-1">{{ $match->category->name }}</span>
                         <h4 class="font-extrabold text-base-content text-sm leading-tight">{{ $match->group ? $match->group->group_name : $match->stage_label }}</h4>
-                        <p class="text-xs font-bold text-base-content/50 mt-1">{{ $match->round_name }}</p>
+                        @if(str_contains((string)$match->round_name, 'Play-off') || str_contains((string)$match->round_name, 'Penentuan'))
+                            <span class="inline-block mt-1 bg-rose-100 border border-rose-200 text-rose-700 text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider">
+                                ⚔️ {{ $match->round_name }}
+                            </span>
+                        @else
+                            <p class="text-xs font-bold text-base-content/50 mt-1">{{ $match->round_name }}</p>
+                        @endif
                         
                         <div class="mt-3">
                             @if($match->status === 'scheduled')

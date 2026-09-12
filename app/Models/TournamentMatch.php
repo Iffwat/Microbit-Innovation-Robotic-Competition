@@ -336,11 +336,14 @@ class TournamentMatch extends Model
             return;
         }
 
-        // For soccer: recalculate cleanly from all completed matches in this group
+        // For soccer: recalculate cleanly from all completed regular matches in this group
+        // (Excludes Play-off matches so they act purely as head-to-head tie-breakers without corrupting regular league GD/Pts)
         $completedMatches = self::where('group_id', $groupId)
             ->where('status', 'completed')
             ->whereNotNull('home_score')
             ->whereNotNull('away_score')
+            ->where('round_name', 'not like', '%Play-off%')
+            ->where('round_name', 'not like', '%Penentuan%')
             ->get();
 
         foreach ($groupTeams as $gt) {
