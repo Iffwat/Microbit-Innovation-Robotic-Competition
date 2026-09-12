@@ -62,6 +62,11 @@ new class extends Component
         $group = Group::where('id', $groupId)->where('category_id', $this->category->id)->firstOrFail();
         $group->field_number = empty($fieldNumber) ? null : $fieldNumber;
         $group->save();
+
+        // Also update all scheduled (unplayed) matches for this group immediately
+        TournamentMatch::where('group_id', $groupId)
+            ->where('status', 'scheduled')
+            ->update(['field_number' => $group->field_number]);
     }
 
     public function openCreateGroupModal(): void

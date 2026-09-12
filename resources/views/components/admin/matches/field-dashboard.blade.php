@@ -23,6 +23,21 @@ new class extends Component
     public $obsMinutes1 = 0, $obsSeconds1 = 0, $obsMilliseconds1 = 0, $obsPenalties1 = 0;
     public $obsMinutes2 = 0, $obsSeconds2 = 0, $obsMilliseconds2 = 0, $obsPenalties2 = 0;
 
+    // --- Field Transfer State ---
+    public $movingMatchId = null;
+    public $targetField = null;
+    public $showMoveModal = false;
+
+    // Bulk Field Transfer State
+    public $bulkMode = false;
+    public $selectedMatchIds = [];
+    public $bulkTargetField = null;
+
+    // Pull to Empty Field State
+    public $showPullModal = false;
+    public $pullSelectedMatches = [];
+    public $pullFilterField = '';
+
     public function mount()
     {
         $this->activeField = session('volunteer_field', null);
@@ -441,6 +456,200 @@ new class extends Component
         \Illuminate\Support\Facades\Cache::put('live_tv_calls', $calls, now()->addMinutes(1));
         session()->flash('success', 'Panggilan siaran langsung telah dihantar ke Live TV!');
     }
+
+    public function openMoveMatchModal($matchId)
+    {
+        $this->movingMatchId = $matchId;
+        $this->targetField = null;
+        $this->showMoveModal = true;
+    }
+
+    public function closeMoveMatchModal()
+    {
+        $this->movingMatchId = null;
+        $this->targetField = null;
+        $this->showMoveModal = false;
+    }
+
+    public function moveMatchToField($targetField = null)
+    {
+        $field = $targetField ?: $this->targetField;
+        if (!$field) {
+            $this->js("alert('Sila pilih padang sasaran.');");
+            return;
+        }
+
+        if (!$this->movingMatchId) return;
+
+        $match = TournamentMatch::with(['homeTeam', 'awayTeam'])->find($this->movingMatchId);
+        if (!$match) return;
+
+        $match->field_number = $field;
+        $match->save();
+
+        $homeName = $match->homeTeam->team_name ?? 'BYE';
+        $awayName = $match->awayTeam->team_name ?? 'BYE';
+        $fieldLabel = is_numeric($field) ? 'Padang ' . $field : $field;
+
+        session()->flash('success', "Perlawanan ({$homeName} vs {$awayName}) berjaya dipindahkan ke {$fieldLabel}!");
+
+        $this->closeMoveMatchModal();
+    }
+
+    public function toggleBulkMode()
+    {
+        $this->bulkMode = !$this->bulkMode;
+        if (!$this->bulkMode) {
+            $this->selectedMatchIds = [];
+            $this->bulkTargetField = null;
+        }
+    }
+
+    public function toggleSelectMatch($matchId)
+    {
+        if (in_array($matchId, $this->selectedMatchIds)) {
+            $this->selectedMatchIds = array_values(array_diff($this->selectedMatchIds, [$matchId]));
+        } else {
+            $this->selectedMatchIds[] = $matchId;
+        }
+    }
+
+    public function selectAllScheduled()
+    {
+        $this->selectedMatchIds = $this->matches->where('status', 'scheduled')->pluck('id')->toArray();
+    }
+
+    public function clearSelection()
+    {
+        $this->selectedMatchIds = [];
+    }
+
+    public function executeBulkMove()
+    {
+        if (empty($this->selectedMatchIds)) {
+            $this->js("alert('Sila pilih sekurang-kurangnya satu perlawanan.');");
+            return;
+        }
+
+        if (empty($this->bulkTargetField)) {
+            $this->js("alert('Sila pilih padang sasaran.');");
+            return;
+        }
+
+        $count = count($this->selectedMatchIds);
+        TournamentMatch::whereIn('id', $this->selectedMatchIds)
+            ->where('status', 'scheduled')
+            ->update(['field_number' => $this->bulkTargetField]);
+
+        $fieldLabel = is_numeric($this->bulkTargetField) ? 'Padang ' . $this->bulkTargetField : $this->bulkTargetField;
+        session()->flash('success', "Sebanyak {$count} perlawanan berjaya dipindahkan ke {$fieldLabel}!");
+
+        $this->selectedMatchIds = [];
+        $this->bulkTargetField = null;
+        $this->bulkMode = false;
+    }
+
+    public function openPullModal()
+    {
+        $this->pullSelectedMatches = [];
+        $this->pullFilterField = '';
+        $this->showPullModal = true;
+    }
+
+    public function closePullModal()
+    {
+        $this->showPullModal = false;
+        $this->pullSelectedMatches = [];
+    }
+
+    public function pullSingleMatch($matchId)
+    {
+        if (!$this->activeField) return;
+
+        $match = TournamentMatch::with(['homeTeam', 'awayTeam'])->find($matchId);
+        if ($match) {
+            $match->field_number = $this->activeField;
+            $match->save();
+
+            $homeName = $match->homeTeam->team_name ?? 'BYE';
+            $awayName = $match->awayTeam->team_name ?? 'BYE';
+            $fieldLabel = is_numeric($this->activeField) ? 'Padang ' . $this->activeField : $this->activeField;
+            session()->flash('success', "Perlawanan ({$homeName} vs {$awayName}) berjaya ditarik ke {$fieldLabel}!");
+        }
+    }
+
+    public function executePullMatches()
+    {
+        if (!$this->activeField || empty($this->pullSelectedMatches)) {
+            $this->js("alert('Sila pilih sekurang-kurangnya satu perlawanan untuk ditarik.');");
+            return;
+        }
+
+        $count = count($this->pullSelectedMatches);
+        TournamentMatch::whereIn('id', $this->pullSelectedMatches)
+            ->where('status', 'scheduled')
+            ->update(['field_number' => $this->activeField]);
+
+        $fieldLabel = is_numeric($this->activeField) ? 'Padang ' . $this->activeField : $this->activeField;
+        session()->flash('success', "Sebanyak {$count} perlawanan berjaya ditarik ke {$fieldLabel}!");
+
+        $this->closePullModal();
+    }
+
+    #[\Livewire\Attributes\Computed]
+    public function allFieldsSummary()
+    {
+        $fields = TournamentMatch::whereNotNull('field_number')
+            ->select('field_number')
+            ->distinct()
+            ->orderByRaw('LENGTH(field_number)')
+            ->orderBy('field_number')
+            ->pluck('field_number');
+
+        $summaries = [];
+        foreach ($fields as $f) {
+            $scheduled = TournamentMatch::where('field_number', $f)->where('status', 'scheduled')->count();
+            $inProgress = TournamentMatch::where('field_number', $f)->where('status', 'in_progress')->count();
+            $completed = TournamentMatch::where('field_number', $f)->where('status', 'completed')->count();
+            $total = $scheduled + $inProgress + $completed;
+
+            $summaries[] = [
+                'field' => $f,
+                'scheduled' => $scheduled,
+                'in_progress' => $inProgress,
+                'completed' => $completed,
+                'total' => $total,
+                'is_empty' => ($scheduled === 0 && $inProgress === 0),
+            ];
+        }
+
+        return collect($summaries);
+    }
+
+    #[\Livewire\Attributes\Computed]
+    public function otherFieldsScheduledMatches()
+    {
+        if (!$this->activeField) return collect();
+
+        $query = TournamentMatch::with(['homeTeam', 'awayTeam', 'category', 'group'])
+            ->where('field_number', '!=', $this->activeField)
+            ->where('status', 'scheduled');
+
+        if ($this->pullFilterField) {
+            $query->where('field_number', $this->pullFilterField);
+        }
+
+        return $query->orderBy('field_number')
+            ->orderBy('scheduled_time')
+            ->orderBy('id')
+            ->get();
+    }
+
+    #[\Livewire\Attributes\Computed]
+    public function movingMatch()
+    {
+        return $this->movingMatchId ? TournamentMatch::with(['homeTeam', 'awayTeam', 'category', 'group'])->find($this->movingMatchId) : null;
+    }
 };
 ?>
 
@@ -487,8 +696,22 @@ new class extends Component
                         @endif
                         @php
                             $pending = \App\Models\TournamentMatch::where('field_number', $field)->where('status', 'scheduled')->count();
+                            $inProg = \App\Models\TournamentMatch::where('field_number', $field)->where('status', 'in_progress')->count();
                         @endphp
-                        <p class="text-xs font-bold text-amber-600 mt-1">{{ $pending }} {{ __('Menunggu') }}</p>
+                        @if($pending === 0 && $inProg === 0)
+                            <span class="inline-block mt-1.5 text-[10px] font-black bg-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                                🟢 {{ __('Kosong / Selesai') }}
+                            </span>
+                        @elseif($inProg > 0)
+                            <span class="inline-block mt-1.5 text-[10px] font-black bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">
+                                🔴 {{ __('Sedang Berlangsung') }}
+                            </span>
+                            <p class="text-[10px] font-bold text-base-content/50 mt-0.5">{{ $pending }} {{ __('menunggu') }}</p>
+                        @else
+                            <span class="inline-block mt-1.5 text-[10px] font-black bg-amber-100 text-amber-700 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                                ⏳ {{ $pending }} {{ __('Menunggu') }}
+                            </span>
+                        @endif
                     </button>
                 @endforeach
             </div>
@@ -517,6 +740,21 @@ new class extends Component
                 </div>
             </div>
             <div class="flex items-center gap-2 flex-wrap">
+                @php
+                    $fieldScheduledCount = $this->matches->where('status', 'scheduled')->count();
+                @endphp
+                @if($fieldScheduledCount > 0)
+                    <button wire:click="toggleBulkMode" 
+                            class="inline-flex items-center gap-1.5 {{ $bulkMode ? 'bg-indigo-600 text-white' : 'bg-indigo-50 border-2 border-indigo-200 text-indigo-700 hover:bg-indigo-100' }} text-xs font-bold px-3 py-2 rounded-xl transition-colors shadow-2xs">
+                        <span>{{ $bulkMode ? '✕ Tutup Pilihan' : '☑️ Pindah Banyak' }}</span>
+                    </button>
+                @endif
+                <button wire:click="openPullModal" 
+                        class="inline-flex items-center gap-1.5 bg-emerald-50 border-2 border-emerald-300 text-emerald-700 hover:bg-emerald-100 text-xs font-bold px-3 py-2 rounded-xl transition-colors shadow-2xs"
+                        title="{{ __('Tarik perlawanan dari padang lain yang masih sibuk ke padang ini') }}">
+                    <span>📥</span>
+                    <span>{{ __('Tarik Perlawanan') }}</span>
+                </button>
                 @if(session('auth_role') === 'master' && str_contains($activeField, 'Sky Soccer'))
                     <button wire:click="autoInterleaveSkySoccer" 
                             wire:confirm="{{ __('Adakah anda pasti mahu menyusun semula perlawanan Sky Soccer secara berselang-seli mengikut pusingan?') }}"
@@ -530,6 +768,28 @@ new class extends Component
                 </button>
             </div>
         </div>
+
+        @if($fieldScheduledCount === 0)
+            <div class="bg-gradient-to-r from-emerald-50 via-teal-50 to-blue-50 border-2 border-emerald-300 rounded-3xl p-6 text-center space-y-3 shadow-xs animate-fade-in">
+                <div class="w-12 h-12 bg-emerald-500 text-white rounded-2xl flex items-center justify-center mx-auto text-xl font-black shadow-md shadow-emerald-500/20">
+                    ✓
+                </div>
+                <div>
+                    <h3 class="text-lg font-black text-emerald-900 leading-tight">
+                        {{ is_numeric($activeField) ? __('Padang') . ' ' . $activeField : $activeField }} {{ __('Telah Selesai Semua Perlawanan!') }}
+                    </h3>
+                    <p class="text-xs text-emerald-700 max-w-lg mx-auto mt-1">
+                        {{ __('Padang ini kini kosong. Jika padang lain masih mempunyai banyak perlawanan yang menunggu giliran, anda boleh menarik perlawanan ke padang ini untuk mempercepatkan perjalanan pertandingan.') }}
+                    </p>
+                </div>
+                <div>
+                    <button wire:click="openPullModal" class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-md transition-all active:scale-95">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                        <span>{{ __('Tarik Perlawanan dari Padang Lain ke Sini') }}</span>
+                    </button>
+                </div>
+            </div>
+        @endif
 
         {{-- Toolbar Susunan & Penapis Perlawanan (Khusus Sky Soccer & Padang Lain) --}}
         <div class="bg-white rounded-2xl border border-base-200 shadow-sm p-4 space-y-3">
@@ -622,6 +882,14 @@ new class extends Component
         <div class="space-y-4">
             @forelse($this->matches as $match)
                 <div class="bg-white rounded-2xl border {{ $match->status === 'in_progress' ? 'border-primary ring-2 ring-primary/20' : 'border-base-200' }} shadow-sm overflow-hidden flex flex-col md:flex-row">
+                    @if($bulkMode && $match->status === 'scheduled')
+                        <div class="p-4 bg-indigo-50/50 flex items-center justify-center border-b md:border-b-0 md:border-r border-indigo-100 shrink-0">
+                            <input type="checkbox" 
+                                   wire:click="toggleSelectMatch({{ $match->id }})"
+                                   {{ in_array($match->id, $selectedMatchIds) ? 'checked' : '' }}
+                                   class="checkbox checkbox-primary checkbox-md rounded-lg" />
+                        </div>
+                    @endif
                     
                     {{-- Status/Info Sidebar --}}
                     <div class="md:w-48 bg-base-200/50 p-4 border-b md:border-b-0 md:border-r border-base-200 flex flex-col justify-center">
@@ -693,10 +961,16 @@ new class extends Component
                                     </button>
                                 @else
                                     @if($match->status === 'scheduled')
-                                        <button wire:click="callTeam({{ $match->id }})" class="bg-amber-100 hover:bg-amber-200 text-amber-700 font-bold px-4 py-2 rounded-xl text-xs transition-colors w-full flex items-center justify-center gap-1.5">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
-                                            {{ __('Panggil') }}
-                                        </button>
+                                        <div class="grid grid-cols-2 gap-1.5">
+                                            <button wire:click="callTeam({{ $match->id }})" class="bg-amber-100 hover:bg-amber-200 text-amber-700 font-bold px-2 py-2 rounded-xl text-xs transition-colors flex items-center justify-center gap-1">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                                                <span>{{ __('Panggil') }}</span>
+                                            </button>
+                                            <button wire:click="openMoveMatchModal({{ $match->id }})" class="bg-sky-100 hover:bg-sky-200 text-sky-700 font-bold px-2 py-2 rounded-xl text-xs transition-colors flex items-center justify-center gap-1" title="{{ __('Pindah ke padang lain') }}">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                                                <span>{{ __('Pindah') }}</span>
+                                            </button>
+                                        </div>
                                     @endif
                                     <button wire:click="openScoring({{ $match->id }})" class="bg-primary hover:bg-primary/90 text-white font-bold px-4 py-2.5 rounded-xl text-sm shadow-md shadow-primary/20 transition-all w-full">
                                         @if(($match->group ? $match->group->game_type : '') === 'obstacle')
@@ -926,4 +1200,194 @@ new class extends Component
             </div>
         </div>
     </div>
+
+    {{-- Floating Bulk Move Bar --}}
+    @if($bulkMode)
+        <div class="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900 text-white px-6 py-4 rounded-2xl shadow-2xl flex flex-col sm:flex-row items-center gap-4 border border-white/10 animate-slide-up max-w-2xl w-[90%]">
+            <div class="flex items-center gap-2">
+                <span class="text-xs font-black bg-primary px-2.5 py-1 rounded-full text-white">{{ count($selectedMatchIds) }}</span>
+                <span class="text-xs font-bold">{{ __('Perlawanan Dipilih') }}</span>
+                <button wire:click="selectAllScheduled" class="text-[11px] text-sky-300 hover:underline font-medium ml-2">{{ __('Pilih Semua') }}</button>
+            </div>
+            <div class="flex items-center gap-2 flex-1 w-full sm:w-auto">
+                <label class="text-xs text-white/70 whitespace-nowrap">{{ __('Pindah ke:') }}</label>
+                <select wire:model.live="bulkTargetField" class="select select-sm select-bordered rounded-xl bg-slate-800 text-white text-xs font-bold border-white/20 flex-1">
+                    <option value="">-- {{ __('Pilih Padang Sasaran') }} --</option>
+                    @foreach($this->allFieldsSummary as $fs)
+                        @if($fs['field'] != $activeField)
+                            <option value="{{ $fs['field'] }}">
+                                {{ is_numeric($fs['field']) ? __('Padang') . ' ' . $fs['field'] : $fs['field'] }}
+                                ({{ $fs['is_empty'] ? '🟢 ' . __('Kosong') : $fs['scheduled'] . ' ' . __('menunggu') }})
+                            </option>
+                        @endif
+                    @endforeach
+                </select>
+            </div>
+            <div class="flex items-center gap-2">
+                <button wire:click="executeBulkMove" 
+                        @if(empty($selectedMatchIds) || empty($bulkTargetField)) disabled @endif
+                        class="btn btn-sm bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl border-none disabled:bg-slate-700">
+                    {{ __('Pindahkan') }}
+                </button>
+                <button wire:click="toggleBulkMode" class="btn btn-sm btn-ghost text-white/60 hover:text-white rounded-xl">
+                    {{ __('Batal') }}
+                </button>
+            </div>
+        </div>
+    @endif
+
+    {{-- Move Single Match Modal --}}
+    @if($showMoveModal && $this->movingMatch)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+            <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-slide-up border border-base-200">
+                <div class="p-6 border-b border-base-200 bg-base-50 flex justify-between items-center">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 rounded-xl bg-sky-100 text-sky-600 flex items-center justify-center text-base font-bold">
+                            🔁
+                        </div>
+                        <div>
+                            <h3 class="font-black text-lg text-base-content leading-tight">{{ __('Pindahkan Perlawanan') }}</h3>
+                            <p class="text-xs text-base-content/50">{{ __('Tukar perlawanan ini ke padang yang kosong.') }}</p>
+                        </div>
+                    </div>
+                    <button wire:click="closeMoveMatchModal" class="w-8 h-8 rounded-full bg-base-200 text-base-content/50 hover:text-base-content flex items-center justify-center font-bold">✕</button>
+                </div>
+
+                <div class="p-6 space-y-4">
+                    <div class="bg-base-100 rounded-2xl p-4 border border-base-200 space-y-1">
+                        <span class="text-[10px] font-extrabold uppercase tracking-widest text-primary">{{ $this->movingMatch->category->name ?? '' }} &middot; {{ $this->movingMatch->group ? $this->movingMatch->group->group_name : $this->movingMatch->round_name }}</span>
+                        <p class="font-extrabold text-base-content text-sm">
+                            {{ $this->movingMatch->homeTeam->team_name ?? 'BYE' }}
+                            <span class="text-primary mx-1">VS</span>
+                            {{ $this->movingMatch->awayTeam->team_name ?? 'BYE' }}
+                        </p>
+                        <p class="text-xs text-base-content/60 mt-1">
+                            {{ __('Padang Semasa:') }} <strong class="text-amber-600">{{ is_numeric($this->movingMatch->field_number) ? __('Padang') . ' ' . $this->movingMatch->field_number : $this->movingMatch->field_number }}</strong>
+                        </p>
+                    </div>
+
+                    <div class="space-y-2">
+                        <label class="text-xs font-bold text-base-content uppercase tracking-wider">{{ __('Klik Padang Sasaran:') }}</label>
+                        <div class="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-1">
+                            @foreach($this->allFieldsSummary as $fs)
+                                @php $isCurrent = ($fs['field'] == $this->movingMatch->field_number); @endphp
+                                <button type="button"
+                                        wire:click="moveMatchToField('{{ $fs['field'] }}')"
+                                        @if($isCurrent) disabled @endif
+                                        class="p-3 rounded-xl border text-left transition-all {{ $isCurrent ? 'bg-base-100 border-base-200 opacity-40 cursor-not-allowed' : ($fs['is_empty'] ? 'border-emerald-300 bg-emerald-50/50 hover:bg-emerald-100 hover:border-emerald-500' : 'border-base-200 hover:border-primary hover:bg-primary/5') }}">
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-extrabold text-sm text-base-content">
+                                            {{ is_numeric($fs['field']) ? __('Padang') . ' ' . $fs['field'] : $fs['field'] }}
+                                        </span>
+                                        @if($fs['is_empty'])
+                                            <span class="text-[9px] font-black text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">🟢 Kosong</span>
+                                        @else
+                                            <span class="text-[9px] font-bold text-base-content/50">{{ $fs['scheduled'] }} m'tunggu</span>
+                                        @endif
+                                    </div>
+                                </button>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-4 border-t border-base-200 bg-base-50 flex justify-end">
+                    <button wire:click="closeMoveMatchModal" class="px-5 py-2.5 bg-base-200 hover:bg-base-300 text-base-content font-bold rounded-xl transition-colors text-sm">
+                        {{ __('Batal') }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Pull Matches Modal --}}
+    @if($showPullModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+            <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden animate-slide-up border border-base-200 max-h-[85vh] flex flex-col">
+                <div class="p-6 border-b border-base-200 bg-base-50 flex justify-between items-center shrink-0">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-base font-bold">
+                            📥
+                        </div>
+                        <div>
+                            <h3 class="font-black text-lg text-base-content">
+                                {{ __('Tarik Perlawanan ke') }} {{ is_numeric($activeField) ? __('Padang') . ' ' . $activeField : $activeField }}
+                            </h3>
+                            <p class="text-xs text-base-content/50">{{ __('Pilih perlawanan dari padang lain yang masih sibuk untuk dipindahkan ke sini.') }}</p>
+                        </div>
+                    </div>
+                    <button wire:click="closePullModal" class="w-8 h-8 rounded-full bg-base-200 text-base-content/50 hover:text-base-content flex items-center justify-center font-bold">✕</button>
+                </div>
+
+                {{-- Filter Bar --}}
+                <div class="p-4 border-b border-base-200 bg-base-100/50 flex gap-2 shrink-0">
+                    <select wire:model.live="pullFilterField" class="select select-bordered select-sm rounded-xl text-xs flex-1 bg-white">
+                        <option value="">-- {{ __('Semua Padang Asal') }} --</option>
+                        @foreach($this->allFieldsSummary as $fs)
+                            @if($fs['field'] != $activeField && $fs['scheduled'] > 0)
+                                <option value="{{ $fs['field'] }}">
+                                    {{ is_numeric($fs['field']) ? __('Padang') . ' ' . $fs['field'] : $fs['field'] }} ({{ $fs['scheduled'] }} menunggu)
+                                </option>
+                            @endif
+                        @endforeach
+                    </select>
+                </div>
+
+                {{-- Matches List --}}
+                <div class="p-6 overflow-y-auto flex-1 space-y-2.5">
+                    @php $otherMatches = $this->otherFieldsScheduledMatches; @endphp
+                    @forelse($otherMatches as $om)
+                        <div class="bg-base-50 border border-base-200 hover:border-primary/40 rounded-2xl p-4 flex items-center justify-between gap-3 transition-colors">
+                            <div class="flex items-center gap-3">
+                                <input type="checkbox"
+                                       wire:model.live="pullSelectedMatches"
+                                       value="{{ $om->id }}"
+                                       class="checkbox checkbox-primary checkbox-sm rounded-lg" />
+                                <div>
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <span class="text-[10px] font-black bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md">
+                                            {{ is_numeric($om->field_number) ? __('Padang') . ' ' . $om->field_number : $om->field_number }}
+                                        </span>
+                                        <span class="text-[10px] font-bold text-base-content/50 uppercase">
+                                            {{ $om->category->name }} &middot; {{ $om->group ? $om->group->group_name : $om->round_name }}
+                                        </span>
+                                    </div>
+                                    <p class="font-extrabold text-sm text-base-content mt-1">
+                                        {{ $om->homeTeam->team_name ?? 'BYE' }}
+                                        <span class="text-primary font-bold mx-1">vs</span>
+                                        {{ $om->awayTeam->team_name ?? 'BYE' }}
+                                    </p>
+                                </div>
+                            </div>
+                            <button type="button" 
+                                    wire:click="pullSingleMatch({{ $om->id }})"
+                                    class="btn btn-sm bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-xs shrink-0">
+                                + {{ __('Tarik ke Sini') }}
+                            </button>
+                        </div>
+                    @empty
+                        <div class="text-center py-10 text-base-content/40">
+                            <p class="font-bold text-sm">{{ __('Tiada perlawanan menunggu di padang lain.') }}</p>
+                        </div>
+                    @endforelse
+                </div>
+
+                <div class="p-4 border-t border-base-200 bg-base-50 flex justify-between items-center shrink-0">
+                    <span class="text-xs font-bold text-base-content/60">
+                        {{ count($pullSelectedMatches) }} {{ __('perlawanan dipilih') }}
+                    </span>
+                    <div class="flex gap-2">
+                        <button wire:click="closePullModal" class="px-4 py-2 bg-base-200 hover:bg-base-300 text-base-content font-bold rounded-xl text-xs">
+                            {{ __('Batal') }}
+                        </button>
+                        <button wire:click="executePullMatches" 
+                                @if(empty($pullSelectedMatches)) disabled @endif
+                                class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-md disabled:bg-base-300 disabled:text-base-content/30">
+                            {{ __('Pindahkan Terpilih ke Sini') }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
 </div>
