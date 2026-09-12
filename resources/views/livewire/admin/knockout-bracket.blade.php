@@ -87,40 +87,53 @@ new class extends Component {
                             <!-- Teams -->
                             <div class="p-4 flex flex-col relative z-10">
                                 <!-- Home Team -->
-                                <div class="flex justify-between items-center px-4 py-3 rounded-t-xl border border-base-200 border-b-0 {{ $match->winner_team_id === $match->home_team_id ? 'bg-emerald-50 border-emerald-200' : 'bg-base-50' }}">
+                                <div class="flex justify-between items-center px-4 py-3 rounded-t-xl border border-base-200 border-b-0 {{ ($match->winner_team_id === $match->home_team_id || $match->status === 'bye') ? 'bg-emerald-50 border-emerald-200' : 'bg-base-50' }}">
                                     <div class="font-bold text-sm truncate pr-2 {{ $match->home_team_id ? '' : 'text-base-content/40 italic' }}">
                                         {{ $match->homeTeam->team_name ?? __('Menunggu...') }}
                                     </div>
-                                    <div class="font-black text-lg {{ $match->home_score !== null ? 'text-primary' : 'text-base-content/20' }}">
-                                        {{ $match->home_score ?? '-' }}
+                                    <div class="font-black text-lg {{ $match->status === 'bye' ? 'text-emerald-600' : ($match->home_score !== null ? 'text-primary' : 'text-base-content/20') }}">
+                                        {{ $match->status === 'bye' ? '✓' : ($match->home_score ?? '-') }}
                                     </div>
                                 </div>
                                 
                                 <!-- VS Badge Divider -->
                                 <div class="relative h-px bg-base-200 w-full z-20">
-                                    <div class="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white border border-base-200 px-2 py-0.5 rounded-md text-[10px] font-bold text-base-content/40 tracking-wider">VS</div>
+                                    <div class="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white border border-base-200 px-2 py-0.5 rounded-md text-[10px] font-bold text-base-content/40 tracking-wider">
+                                        {{ $match->status === 'bye' ? 'BYE' : 'VS' }}
+                                    </div>
                                 </div>
 
                                 <!-- Away Team -->
                                 <div class="flex justify-between items-center px-4 py-3 rounded-b-xl border border-base-200 border-t-0 {{ $match->winner_team_id === $match->away_team_id ? 'bg-emerald-50 border-emerald-200' : 'bg-base-50' }}">
-                                    <div class="font-bold text-sm truncate pr-2 {{ $match->away_team_id ? '' : 'text-base-content/40 italic' }}">
-                                        {{ $match->awayTeam->team_name ?? __('Menunggu...') }}
+                                    <div class="font-bold text-sm truncate pr-2 {{ ($match->away_team_id || $match->status === 'bye') ? '' : 'text-base-content/40 italic' }}">
+                                        @if($match->status === 'bye')
+                                            <span class="text-xs font-black text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-full uppercase tracking-wider">BYE (Laluan Percuma)</span>
+                                        @else
+                                            {{ $match->awayTeam->team_name ?? __('Menunggu...') }}
+                                        @endif
                                     </div>
                                     <div class="font-black text-lg {{ $match->away_score !== null ? 'text-primary' : 'text-base-content/20' }}">
-                                        {{ $match->away_score ?? '-' }}
+                                        {{ $match->status === 'bye' ? '-' : ($match->away_score ?? '-') }}
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Settings (Field) -->
                             <div class="p-4 border-t border-base-100 mt-auto rounded-b-2xl bg-base-50/50">
-                                <select wire:change="updateField({{ $match->id }}, $event.target.value)" class="w-full bg-white border-2 border-base-200 rounded-xl px-3 py-2.5 text-sm font-bold text-base-content/70 focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all">
-                                    <option value="">-- {{ __('Tetapkan Padang') }} --</option>
-                                    @for($i=1; $i<=15; $i++)
-                                        <option value="{{ $i }}" {{ $match->field_number == $i ? 'selected' : '' }}>{{ __('Padang') }} {{ $i }}</option>
-                                    @endfor
-                                    <option value="Arena Sky Soccer" {{ $match->field_number === 'Arena Sky Soccer' ? 'selected' : '' }}>Arena Sky Soccer</option>
-                                </select>
+                                @if($match->status === 'bye')
+                                    <div class="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl py-2 px-3 text-center flex items-center justify-center gap-1.5">
+                                        <svg class="w-4 h-4 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                        <span>{{ __('Layak Terus ke Pusingan ke-16') }}</span>
+                                    </div>
+                                @else
+                                    <select wire:change="updateField({{ $match->id }}, $event.target.value)" class="w-full bg-white border-2 border-base-200 rounded-xl px-3 py-2.5 text-sm font-bold text-base-content/70 focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all">
+                                        <option value="">-- {{ __('Tetapkan Padang') }} --</option>
+                                        @for($i=1; $i<=15; $i++)
+                                            <option value="{{ $i }}" {{ $match->field_number == $i ? 'selected' : '' }}>{{ __('Padang') }} {{ $i }}</option>
+                                        @endfor
+                                        <option value="Arena Sky Soccer" {{ $match->field_number === 'Arena Sky Soccer' ? 'selected' : '' }}>Arena Sky Soccer</option>
+                                    </select>
+                                @endif
                             </div>
                         </div>
                     @endforeach

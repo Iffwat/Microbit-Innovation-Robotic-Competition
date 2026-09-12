@@ -59,7 +59,7 @@ new class extends Component {
             if ($includeCup) {
                 $this->createBracketFor13Groups($categoryId, 'cup_knockout', $standings, $groupNames, true);
             }
-            $roundName = $includeCup ? 'Pusingan Trofi & Piala (16 Pasukan Setiap Satu)' : 'Pusingan Trofi ke-16 (13 Juara + 3 Naib Juara Terbaik)';
+            $roundName = $includeCup ? 'Pusingan Trofi & Piala (26 Pasukan Setiap Satu)' : 'Pusingan Trofi (26 Pasukan: 13 Juara + 13 Naib Juara)';
         } else {
             $this->createBracket($categoryId, 'trophy_knockout', $standings, $groupNames, 0, 1);
             
@@ -92,80 +92,86 @@ new class extends Component {
     private function createBracketFor13Groups($categoryId, $stage, $standings, $groupNames, bool $isCup = false)
     {
         if (!$isCup) {
-            // Trophy: 13 Group Champions + 3 Best Runners-up = 16 teams
-            $champions = [];
-            $runnersUp = [];
+            // Trophy: All 13 Champions (1st place) + All 13 Runners-up (2nd place) = 26 teams
+            $tier1 = []; // 13 Champions
+            $tier2 = []; // 13 Runners-up
             foreach ($groupNames as $g) {
-                if (isset($standings[$g][0])) $champions[$g] = $standings[$g][0];
-                if (isset($standings[$g][1])) $runnersUp[$g] = $standings[$g][1];
+                if (isset($standings[$g][0])) $tier1[$g] = $standings[$g][0];
+                if (isset($standings[$g][1])) $tier2[$g] = $standings[$g][1];
             }
-
-            // Sort runners-up by: Points DESC, Goal Difference DESC, Goals For DESC
-            uasort($runnersUp, function($a, $b) {
-                if ($b->points !== $a->points) return $b->points <=> $a->points;
-                if ($b->goal_difference !== $a->goal_difference) return $b->goal_difference <=> $a->goal_difference;
-                return $b->goals_for <=> $a->goals_for;
-            });
-
-            $bestRunnersUp = array_slice($runnersUp, 0, 3);
-            $bestRunnersUpTeams = array_values($bestRunnersUp);
-
-            // 16 teams organized into 8 matches
-            $firstRoundPairs = [
-                [$champions['A']->team_id ?? null, $bestRunnersUpTeams[2]->team_id ?? null],
-                [$champions['B']->team_id ?? null, $champions['M']->team_id ?? null],
-                [$champions['C']->team_id ?? null, $bestRunnersUpTeams[1]->team_id ?? null],
-                [$champions['D']->team_id ?? null, $champions['L']->team_id ?? null],
-                [$champions['E']->team_id ?? null, $bestRunnersUpTeams[0]->team_id ?? null],
-                [$champions['F']->team_id ?? null, $champions['K']->team_id ?? null],
-                [$champions['G']->team_id ?? null, $champions['J']->team_id ?? null],
-                [$champions['H']->team_id ?? null, $champions['I']->team_id ?? null],
-            ];
         } else {
-            // Cup: Remaining 10 Runners-up + 6 Best 3rd-place teams = 16 teams
-            $allRunnersUp = [];
-            $thirdPlace = [];
+            // Cup: All 13 3rd-place + All 13 4th-place = 26 teams
+            $tier1 = []; // 13 3rd-place
+            $tier2 = []; // 13 4th-place
             foreach ($groupNames as $g) {
-                if (isset($standings[$g][1])) $allRunnersUp[$g] = $standings[$g][1];
-                if (isset($standings[$g][2])) $thirdPlace[$g] = $standings[$g][2];
-            }
-
-            uasort($allRunnersUp, function($a, $b) {
-                if ($b->points !== $a->points) return $b->points <=> $a->points;
-                if ($b->goal_difference !== $a->goal_difference) return $b->goal_difference <=> $a->goal_difference;
-                return $b->goals_for <=> $a->goals_for;
-            });
-
-            uasort($thirdPlace, function($a, $b) {
-                if ($b->points !== $a->points) return $b->points <=> $a->points;
-                if ($b->goal_difference !== $a->goal_difference) return $b->goal_difference <=> $a->goal_difference;
-                return $b->goals_for <=> $a->goals_for;
-            });
-
-            $cupRunnersUp = array_slice($allRunnersUp, 3);
-            $bestThird = array_slice($thirdPlace, 0, 6);
-
-            $cupPool = array_merge(array_values($cupRunnersUp), array_values($bestThird));
-
-            $firstRoundPairs = [];
-            for ($i = 0; $i < 8; $i++) {
-                $home = $cupPool[$i]->team_id ?? null;
-                $away = $cupPool[15 - $i]->team_id ?? null;
-                $firstRoundPairs[] = [$home, $away];
+                if (isset($standings[$g][2])) $tier1[$g] = $standings[$g][2];
+                if (isset($standings[$g][3])) $tier2[$g] = $standings[$g][3];
             }
         }
 
-        // Generate Pusingan ke-16 (8 matches)
-        foreach ($firstRoundPairs as $i => $pair) {
+        // Rank Tier 1 teams: Points DESC, Goal Difference DESC, Goals For DESC
+        uasort($tier1, function($a, $b) {
+            if ($b->points !== $a->points) return $b->points <=> $a->points;
+            if ($b->goal_difference !== $a->goal_difference) return $b->goal_difference <=> $a->goal_difference;
+            return $b->goals_for <=> $a->goals_for;
+        });
+
+        $rankedTier1 = array_values($tier1);
+        $top6Seed = array_slice($rankedTier1, 0, 6);         // 6 teams get BYE straight to P16
+        $remainingTier1 = array_slice($rankedTier1, 6);       // 7 teams play in P32
+        $tier2List = array_values($tier2);                   // 13 teams play in P32
+
+        // Unseeded pool for P32 real matches: 7 Tier1 + 13 Tier2 = 20 teams (10 matches)
+        $unseededPool = array_merge($remainingTier1, $tier2List);
+
+        // Prevent same-group matchups in the 10 real matches
+        for ($i = 0; $i < 10; $i++) {
+            $oppIdx = count($unseededPool) - 1 - $i;
+            if (isset($unseededPool[$i]->group_letter, $unseededPool[$oppIdx]->group_letter) &&
+                $unseededPool[$i]->group_letter === $unseededPool[$oppIdx]->group_letter &&
+                $oppIdx > $i + 1) {
+                $temp = $unseededPool[$oppIdx];
+                $unseededPool[$oppIdx] = $unseededPool[$oppIdx - 1];
+                $unseededPool[$oppIdx - 1] = $temp;
+            }
+        }
+
+        // 1. Generate Placeholder Downstream Rounds FIRST so advanceKnockoutWinner() can find them!
+        // Penentuan Tempat Ke-3 (1 match)
+        TournamentMatch::create([
+            'category_id' => $categoryId,
+            'stage' => $stage,
+            'round_name' => 'Penentuan Tempat Ke-3',
+            'bracket_position' => 1,
+            'home_team_id' => null,
+            'away_team_id' => null,
+            'status' => 'scheduled',
+            'field_number' => 2,
+        ]);
+
+        // Akhir (1 match)
+        TournamentMatch::create([
+            'category_id' => $categoryId,
+            'stage' => $stage,
+            'round_name' => 'Akhir',
+            'bracket_position' => 1,
+            'home_team_id' => null,
+            'away_team_id' => null,
+            'status' => 'scheduled',
+            'field_number' => 1,
+        ]);
+
+        // Separuh Akhir (2 matches)
+        for ($m = 0; $m < 2; $m++) {
             TournamentMatch::create([
                 'category_id' => $categoryId,
                 'stage' => $stage,
-                'round_name' => 'Pusingan ke-16',
-                'bracket_position' => $i + 1,
-                'home_team_id' => $pair[0],
-                'away_team_id' => $pair[1],
+                'round_name' => 'Separuh Akhir',
+                'bracket_position' => $m + 1,
+                'home_team_id' => null,
+                'away_team_id' => null,
                 'status' => 'scheduled',
-                'field_number' => ($i % 8) + 1,
+                'field_number' => ($m % 2) + 1,
             ]);
         }
 
@@ -183,43 +189,67 @@ new class extends Component {
             ]);
         }
 
-        // Separuh Akhir (2 matches)
-        for ($m = 0; $m < 2; $m++) {
+        // Pusingan ke-16 (8 matches)
+        for ($m = 0; $m < 8; $m++) {
             TournamentMatch::create([
                 'category_id' => $categoryId,
                 'stage' => $stage,
-                'round_name' => 'Separuh Akhir',
+                'round_name' => 'Pusingan ke-16',
                 'bracket_position' => $m + 1,
                 'home_team_id' => null,
                 'away_team_id' => null,
                 'status' => 'scheduled',
-                'field_number' => ($m % 2) + 1,
+                'field_number' => ($m % 8) + 1,
             ]);
         }
 
-        // Akhir (1 match)
-        TournamentMatch::create([
-            'category_id' => $categoryId,
-            'stage' => $stage,
-            'round_name' => 'Akhir',
-            'bracket_position' => 1,
-            'home_team_id' => null,
-            'away_team_id' => null,
-            'status' => 'scheduled',
-            'field_number' => 1,
-        ]);
+        // 2. Generate Pusingan ke-32 (16 matches total: 6 BYEs + 10 Real matches)
+        // Feeder structure into P16:
+        // P32 Matches 1 & 2   -> P16 Match 1 (Home & Away)
+        // P32 Matches 3 & 4   -> P16 Match 2 (Home & Away)
+        // P32 Matches 5 & 6   -> P16 Match 3 (Home & Away)
+        // P32 Matches 7 & 8   -> P16 Match 4 (Home & Away)
+        // P32 Matches 9 & 10  -> P16 Match 5 (Home & Away)
+        // P32 Matches 11 & 12 -> P16 Match 6 (Home & Away)
+        // P32 Matches 13 & 14 -> P16 Match 7 (Home & Away)
+        // P32 Matches 15 & 16 -> P16 Match 8 (Home & Away)
+        $byePositions = [1, 3, 5, 9, 11, 13];
+        $realPositions = [2, 4, 6, 7, 8, 10, 12, 14, 15, 16];
 
-        // Penentuan Tempat Ke-3 (1 match)
-        TournamentMatch::create([
-            'category_id' => $categoryId,
-            'stage' => $stage,
-            'round_name' => 'Penentuan Tempat Ke-3',
-            'bracket_position' => 1,
-            'home_team_id' => null,
-            'away_team_id' => null,
-            'status' => 'scheduled',
-            'field_number' => 2,
-        ]);
+        // Create the 6 BYE matches and auto-advance the seeds to P16!
+        foreach ($byePositions as $k => $pos) {
+            $seedTeamId = $top6Seed[$k]->team_id ?? null;
+            $byeMatch = TournamentMatch::create([
+                'category_id' => $categoryId,
+                'stage' => $stage,
+                'round_name' => 'Pusingan ke-32',
+                'bracket_position' => $pos,
+                'home_team_id' => $seedTeamId,
+                'away_team_id' => null,
+                'status' => 'bye',
+                'winner_team_id' => $seedTeamId,
+                'field_number' => null,
+            ]);
+            $byeMatch->advanceKnockoutWinner();
+        }
+
+        // Create the 10 Real matches (20 teams)
+        foreach ($realPositions as $idx => $pos) {
+            $homeId = $unseededPool[$idx]->team_id ?? null;
+            $oppIdx = count($unseededPool) - 1 - $idx;
+            $awayId = isset($unseededPool[$oppIdx]) ? $unseededPool[$oppIdx]->team_id : null;
+
+            TournamentMatch::create([
+                'category_id' => $categoryId,
+                'stage' => $stage,
+                'round_name' => 'Pusingan ke-32',
+                'bracket_position' => $pos,
+                'home_team_id' => $homeId,
+                'away_team_id' => $awayId,
+                'status' => 'scheduled',
+                'field_number' => ($idx % 8) + 1,
+            ]);
+        }
     }
 
     private function createBracket($categoryId, $stage, $standings, $groupNames, $pos1, $pos2)
@@ -413,7 +443,7 @@ new class extends Component {
                     <div class="bg-blue-50 border border-blue-200 text-blue-800 p-4 rounded-2xl text-sm leading-relaxed">
                         {{ __('Kategori ini mempunyai') }} <strong>{{ $groupCount }} {{ __('Kumpulan') }}</strong>.
                         @if($groupCount === 13)
-                            <span class="block mt-1 font-semibold text-blue-900">{{ __('Format Khas 13 Kumpulan: 13 Juara Kumpulan + 3 Naib Juara Terbaik akan disusun ke Pusingan ke-16 Trofi (16 Pasukan).') }}</span>
+                            <span class="block mt-1 font-semibold text-blue-900">{{ __('Format Khas 13 Kumpulan (26 Pasukan): Semua 13 Juara & 13 Naib Juara layak ke Trofi. Semua 13 Tempat Ke-3 & 13 Tempat Ke-4 layak ke Piala. 6 Pasukan Terbaik mendapat BYE terus ke Pusingan ke-16.') }}</span>
                         @else
                             {{ __('Sistem akan menyusun perlawanan secara silang (Piawaian FIFA) berdasarkan kedudukan terkini peringkat kumpulan.') }}
                         @endif
@@ -431,7 +461,7 @@ new class extends Component {
                             <span>🏆 {{ __('Jana Pusingan Trofi Sahaja') }}</span>
                             <span class="text-xs font-medium text-white/70">
                                 @if($groupCount === 13)
-                                    ({{ __('16 Pasukan: 13 Juara Kumpulan + 3 Naib Juara Terbaik') }})
+                                    ({{ __('26 Pasukan: 13 Juara + 13 Naib Juara | 6 BYE ke P16') }})
                                 @else
                                     ({{ __('Juara & Naib Juara Kumpulan sahaja') }})
                                 @endif
@@ -442,7 +472,7 @@ new class extends Component {
                             <span>🏆 &amp; 🥈 {{ __('Jana Pusingan Trofi & Piala Serentak') }}</span>
                             <span class="text-xs font-medium text-white/70 text-center px-4 leading-relaxed">
                                 @if($groupCount === 13)
-                                    {{ __('Trofi: 16 Pasukan (13 Juara + 3 Naib Juara Terbaik) | Piala: 16 Pasukan (Baki 10 Naib Juara + 6 Terbaik Tempat Ke-3)') }}
+                                    {{ __('Trofi: 26 Pasukan (13 Juara + 13 Naib Juara) | Piala: 26 Pasukan (13 Ke-3 + 13 Ke-4) [6 Pasukan Terbaik Dapat BYE ke P16]') }}
                                 @else
                                     ({{ __('Trofi: Top 2 | Piala: Tempat 3 & 4') }})
                                 @endif
