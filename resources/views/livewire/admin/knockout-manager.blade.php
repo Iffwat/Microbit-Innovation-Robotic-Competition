@@ -59,7 +59,7 @@ new class extends Component {
             if ($includeCup) {
                 $this->createBracketFor13Groups($categoryId, 'cup_knockout', $standings, $groupNames, true);
             }
-            $roundName = 'Pusingan ke-16 (13 Juara + 3 Naib Juara Terbaik)';
+            $roundName = $includeCup ? 'Pusingan Trofi & Piala (16 Pasukan Setiap Satu)' : 'Pusingan Trofi ke-16 (13 Juara + 3 Naib Juara Terbaik)';
         } else {
             $this->createBracket($categoryId, 'trophy_knockout', $standings, $groupNames, 0, 1);
             
@@ -428,13 +428,25 @@ new class extends Component {
 
                     <div class="space-y-3">
                         <button wire:click="generateKnockout({{ $cat->id }}, false)" class="w-full bg-primary hover:bg-primary/90 text-white font-bold py-4 rounded-2xl shadow-lg shadow-primary/20 transition-all flex flex-col items-center justify-center gap-1">
-                            <span>{{ __('Jana Pusingan Trofi Sahaja') }}</span>
-                            <span class="text-xs font-medium text-white/70">({{ __('Juara & Naib Juara Kumpulan sahaja') }})</span>
+                            <span>🏆 {{ __('Jana Pusingan Trofi Sahaja') }}</span>
+                            <span class="text-xs font-medium text-white/70">
+                                @if($groupCount === 13)
+                                    ({{ __('16 Pasukan: 13 Juara Kumpulan + 3 Naib Juara Terbaik') }})
+                                @else
+                                    ({{ __('Juara & Naib Juara Kumpulan sahaja') }})
+                                @endif
+                            </span>
                         </button>
                         
                         <button wire:click="generateKnockout({{ $cat->id }}, true)" class="w-full bg-secondary hover:bg-secondary/90 text-white font-bold py-4 rounded-2xl shadow-lg shadow-secondary/20 transition-all flex flex-col items-center justify-center gap-1">
-                            <span>{{ __('Jana Trofi & Piala (Khas U12)') }}</span>
-                            <span class="text-xs font-medium text-white/70">({{ __('Trofi: Top 2 | Piala: Tempat 3 & 4') }})</span>
+                            <span>🏆 &amp; 🥈 {{ __('Jana Pusingan Trofi & Piala Serentak') }}</span>
+                            <span class="text-xs font-medium text-white/70 text-center px-4 leading-relaxed">
+                                @if($groupCount === 13)
+                                    {{ __('Trofi: 16 Pasukan (13 Juara + 3 Naib Juara Terbaik) | Piala: 16 Pasukan (Baki 10 Naib Juara + 6 Terbaik Tempat Ke-3)') }}
+                                @else
+                                    ({{ __('Trofi: Top 2 | Piala: Tempat 3 & 4') }})
+                                @endif
+                            </span>
                         </button>
 
                         @if($hasKnockouts)
