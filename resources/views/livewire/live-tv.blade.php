@@ -140,6 +140,8 @@ new class extends Component {
             'Separuh Akhir' => 4,
             'Akhir' => 5,
             'Penentuan Tempat Ke-3' => 6,
+            'Separuh Akhir Tempat Ke-5' => 7,
+            'Penentuan Tempat Ke-5' => 8,
         ];
 
         foreach($knockoutCategories as $cat) {
@@ -181,63 +183,77 @@ new class extends Component {
                     $fourthId = ($thirdId == $thirdMatch->home_team_id) ? $thirdMatch->away_team_id : $thirdMatch->home_team_id;
                 }
 
-                // 5th Place: Best QF Loser with highest cumulative goals scored across all knockout matches
-                $qfMatches = $matchesInStage->filter(fn($m) => in_array($m->round_name, ['Suku Akhir', 'Quarter Final']));
-                $qfLosers = [];
+                // 5th Place: Check if Penentuan Tempat Ke-5 match exists
+                $fifthMatch = $allRounds->get('Penentuan Tempat Ke-5') ? $allRounds->get('Penentuan Tempat Ke-5')->first() : null;
+                $fifthId = null;
+                $fifthGoals = null;
+                $fifthSource = null;
 
-                foreach ($qfMatches as $m) {
-                    if ($m->status === 'completed' && $m->winner_team_id) {
-                        $loserId = ($m->winner_team_id == $m->home_team_id) ? $m->away_team_id : $m->home_team_id;
-                        
-                        // Cumulative knockout matches for this loser in this stage
-                        $loserMatches = $matchesInStage->filter(function($match) use ($loserId) {
-                            return $match->status === 'completed' && ($match->home_team_id == $loserId || $match->away_team_id == $loserId);
-                        });
+                if ($fifthMatch && $fifthMatch->status === 'completed' && $fifthMatch->winner_team_id) {
+                    $fifthId = $fifthMatch->winner_team_id;
+                    $fifthSource = 'playoff';
+                } else {
+                    // Fallback to highest cumulative goals among QF losers
+                    $qfMatches = $matchesInStage->filter(fn($m) => in_array($m->round_name, ['Suku Akhir', 'Quarter Final']));
+                    $qfLosers = [];
 
-                        $totalGoals = 0;
-                        $totalConceded = 0;
+                    foreach ($qfMatches as $m) {
+                        if ($m->status === 'completed' && $m->winner_team_id) {
+                            $loserId = ($m->winner_team_id == $m->home_team_id) ? $m->away_team_id : $m->home_team_id;
+                            
+                            // Cumulative knockout matches for this loser in this stage
+                            $loserMatches = $matchesInStage->filter(function($match) use ($loserId) {
+                                return $match->status === 'completed' && ($match->home_team_id == $loserId || $match->away_team_id == $loserId);
+                            });
 
-                        foreach ($loserMatches as $lm) {
-                            if ($lm->home_team_id == $loserId) {
-                                $totalGoals += (int)($lm->home_score ?? 0);
-                                $totalConceded += (int)($lm->away_score ?? 0);
-                            } elseif ($lm->away_team_id == $loserId) {
-                                $totalGoals += (int)($lm->away_score ?? 0);
-                                $totalConceded += (int)($lm->home_score ?? 0);
+                            $totalGoals = 0;
+                            $totalConceded = 0;
+
+                            foreach ($loserMatches as $lm) {
+                                if ($lm->home_team_id == $loserId) {
+                                    $totalGoals += (int)($lm->home_score ?? 0);
+                                    $totalConceded += (int)($lm->away_score ?? 0);
+                                } elseif ($lm->away_team_id == $loserId) {
+                                    $totalGoals += (int)($lm->away_score ?? 0);
+                                    $totalConceded += (int)($lm->home_score ?? 0);
+                                }
                             }
+
+                            $totalGoalDiff = $totalGoals - $totalConceded;
+
+                            $qfLosers[] = [
+                                'team_id'         => $loserId,
+                                'total_goals'     => $totalGoals,
+                                'total_goal_diff' => $totalGoalDiff,
+                                'matches_count'   => $loserMatches->count(),
+                            ];
                         }
-
-                        $totalGoalDiff = $totalGoals - $totalConceded;
-
-                        $qfLosers[] = [
-                            'team_id'         => $loserId,
-                            'total_goals'     => $totalGoals,
-                            'total_goal_diff' => $totalGoalDiff,
-                            'matches_count'   => $loserMatches->count(),
-                        ];
                     }
+
+                    usort($qfLosers, function($a, $b) {
+                        if ($b['total_goals'] !== $a['total_goals']) {
+                            return $b['total_goals'] <=> $a['total_goals'];
+                        }
+                        return $b['total_goal_diff'] <=> $a['total_goal_diff'];
+                    });
+
+                    $fifthId = !empty($qfLosers) ? $qfLosers[0]['team_id'] : null;
+                    $fifthGoals = !empty($qfLosers) ? $qfLosers[0]['total_goals'] : null;
+                    $fifthSource = 'goals';
                 }
-
-                usort($qfLosers, function($a, $b) {
-                    if ($b['total_goals'] !== $a['total_goals']) {
-                        return $b['total_goals'] <=> $a['total_goals']; // Highest cumulative goals first
-                    }
-                    return $b['total_goal_diff'] <=> $a['total_goal_diff']; // Best goal difference
-                });
-
-                $fifthId = !empty($qfLosers) ? $qfLosers[0]['team_id'] : null;
-                $fifthGoals = !empty($qfLosers) ? $qfLosers[0]['total_goals'] : null;
 
                 $allTeamsMap = Team::whereIn('id', array_filter([$firstId, $secondId, $thirdId, $fourthId, $fifthId]))->get()->keyBy('id');
 
                 $rankings = [
-                    'first'       => $firstId ? ($allTeamsMap[$firstId] ?? null) : null,
-                    'second'      => $secondId ? ($allTeamsMap[$secondId] ?? null) : null,
-                    'third'       => $thirdId ? ($allTeamsMap[$thirdId] ?? null) : null,
-                    'fourth'      => $fourthId ? ($allTeamsMap[$fourthId] ?? null) : null,
-                    'fifth'       => $fifthId ? ($allTeamsMap[$fifthId] ?? null) : null,
-                    'fifth_goals' => $fifthGoals,
-                    'isFinished'  => ($firstId !== null && $thirdId !== null)
+                    'first'        => $firstId ? ($allTeamsMap[$firstId] ?? null) : null,
+                    'second'       => $secondId ? ($allTeamsMap[$secondId] ?? null) : null,
+                    'third'        => $thirdId ? ($allTeamsMap[$thirdId] ?? null) : null,
+                    'fourth'       => $fourthId ? ($allTeamsMap[$fourthId] ?? null) : null,
+                    'fifth'        => $fifthId ? ($allTeamsMap[$fifthId] ?? null) : null,
+                    'fifth_goals'  => $fifthGoals,
+                    'fifth_source' => $fifthSource,
+                    'fifth_match'  => $fifthMatch,
+                    'isFinished'   => ($firstId !== null && $thirdId !== null)
                 ];
 
                 // Check if this tournament has Pusingan ke-32 with pending early matches
@@ -252,7 +268,7 @@ new class extends Component {
                 }
 
                 $allFeederRounds = $allRounds->filter(function($matches, $roundName) {
-                    return !in_array($roundName, ['Akhir', 'Penentuan Tempat Ke-3']);
+                    return !in_array($roundName, ['Akhir', 'Penentuan Tempat Ke-3', 'Separuh Akhir Tempat Ke-5', 'Penentuan Tempat Ke-5']);
                 })->sortBy(function($matches, $roundName) use ($roundOrder) {
                     return $roundOrder[$roundName] ?? 99;
                 });
@@ -1207,16 +1223,19 @@ new class extends Component {
                                             <div class="flex items-center gap-2 overflow-hidden">
                                                 <span class="text-sm shrink-0">🎖️</span>
                                                 <div class="overflow-hidden">
-                                                    <div class="flex items-center gap-1.5 flex-wrap">
                                                         <span class="text-[8px] font-black text-emerald-400 uppercase tracking-widest leading-tight">TEMPAT KE-5</span>
-                                                        @if($rankings['fifth_goals'] !== null)
+                                                        @if($rankings['fifth_source'] === 'playoff')
+                                                            <span class="text-[7px] font-black text-emerald-300 bg-emerald-500/20 px-1 py-0.2 rounded border border-emerald-500/30">
+                                                                JUARA PLAYOFF
+                                                            </span>
+                                                        @elseif($rankings['fifth_goals'] !== null)
                                                             <span class="text-[7px] font-black text-emerald-300 bg-emerald-500/20 px-1 py-0.2 rounded border border-emerald-500/30">
                                                                 {{ $rankings['fifth_goals'] }} JUMLAH GOL
                                                             </span>
                                                         @endif
                                                     </div>
                                                     <p class="font-extrabold text-xs text-white truncate leading-tight mt-0.5">
-                                                        {{ $rankings['fifth']->team_name ?? 'Menunggu Suku Akhir' }}
+                                                        {{ $rankings['fifth']->team_name ?? ($rankings['fifth_match'] ? 'Menunggu Penentuan' : 'Menunggu Suku Akhir') }}
                                                     </p>
                                                     @if($rankings['fifth'])
                                                         <p class="text-[8px] text-white/40 truncate font-bold uppercase">{{ $rankings['fifth']->school_name }}</p>

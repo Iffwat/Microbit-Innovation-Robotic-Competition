@@ -23,12 +23,29 @@ new class extends Component {
 
     public function getMatchesProperty()
     {
+        $roundOrder = [
+            'Pusingan ke-32' => 1,
+            'Pusingan 32' => 1,
+            'Pusingan ke-16' => 2,
+            'Pusingan 16' => 2,
+            'Suku Akhir' => 3,
+            'Separuh Akhir' => 4,
+            'Akhir' => 5,
+            'Penentuan Tempat Ke-3' => 6,
+            'Separuh Akhir Tempat Ke-5' => 7,
+            'Penentuan Tempat Ke-5' => 8,
+        ];
+
         return TournamentMatch::with(['homeTeam', 'awayTeam', 'winner'])
             ->where('category_id', $this->category->id)
             ->where('stage', $this->activeTab)
+            ->orderBy('bracket_position')
             ->orderBy('id')
             ->get()
-            ->groupBy('round_name');
+            ->groupBy('round_name')
+            ->sortBy(function ($matches, $roundName) use ($roundOrder) {
+                return $roundOrder[$roundName] ?? 99;
+            });
     }
 
     public function updateField($matchId, $fieldNumber)

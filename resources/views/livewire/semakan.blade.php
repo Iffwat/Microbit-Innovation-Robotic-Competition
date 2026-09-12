@@ -483,11 +483,32 @@ new class extends Component {
     public function knockoutBrackets()
     {
         if (!$this->selectedKnockoutCategoryId) return collect();
+
+        $roundOrder = [
+            'Pusingan ke-32' => 1,
+            'Pusingan 32' => 1,
+            'Pusingan ke-16' => 2,
+            'Pusingan 16' => 2,
+            'Suku Akhir' => 3,
+            'Separuh Akhir' => 4,
+            'Akhir' => 5,
+            'Penentuan Tempat Ke-3' => 6,
+            'Separuh Akhir Tempat Ke-5' => 7,
+            'Penentuan Tempat Ke-5' => 8,
+        ];
+
         return TournamentMatch::with(['homeTeam', 'awayTeam'])
             ->where('category_id', $this->selectedKnockoutCategoryId)
             ->whereIn('stage', ['trophy_knockout', 'cup_knockout'])
+            ->orderBy('bracket_position')
+            ->orderBy('id')
             ->get()
-            ->groupBy(['stage', 'round_name']);
+            ->groupBy('stage')
+            ->map(function ($stageMatches) use ($roundOrder) {
+                return $stageMatches->groupBy('round_name')->sortBy(function ($matches, $roundName) use ($roundOrder) {
+                    return $roundOrder[$roundName] ?? 99;
+                });
+            });
     }
 };
 ?>

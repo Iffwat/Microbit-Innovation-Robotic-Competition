@@ -151,6 +151,32 @@ new class extends Component {
             'field_number' => 2,
         ]);
 
+        // Separuh Akhir Tempat Ke-5 (2 matches)
+        for ($m = 0; $m < 2; $m++) {
+            TournamentMatch::create([
+                'category_id' => $categoryId,
+                'stage' => $stage,
+                'round_name' => 'Separuh Akhir Tempat Ke-5',
+                'bracket_position' => $m + 1,
+                'home_team_id' => null,
+                'away_team_id' => null,
+                'status' => 'scheduled',
+                'field_number' => $m + 3,
+            ]);
+        }
+
+        // Penentuan Tempat Ke-5 (1 match)
+        TournamentMatch::create([
+            'category_id' => $categoryId,
+            'stage' => $stage,
+            'round_name' => 'Penentuan Tempat Ke-5',
+            'bracket_position' => 1,
+            'home_team_id' => null,
+            'away_team_id' => null,
+            'status' => 'scheduled',
+            'field_number' => 3,
+        ]);
+
         // Akhir (1 match)
         TournamentMatch::create([
             'category_id' => $categoryId,
@@ -358,6 +384,35 @@ new class extends Component {
             'status' => 'scheduled',
             'field_number' => 2,
         ]);
+
+        // 5. Generate 5th Place Classification Bracket (for all brackets with Suku Akhir: groupCount >= 4)
+        if ($groupCount >= 4) {
+            // Separuh Akhir Tempat Ke-5 (2 matches)
+            for ($m = 0; $m < 2; $m++) {
+                TournamentMatch::create([
+                    'category_id' => $categoryId,
+                    'stage' => $stage,
+                    'round_name' => 'Separuh Akhir Tempat Ke-5',
+                    'bracket_position' => $m + 1,
+                    'home_team_id' => null,
+                    'away_team_id' => null,
+                    'status' => 'scheduled',
+                    'field_number' => $m + 3,
+                ]);
+            }
+
+            // Penentuan Tempat Ke-5 (1 match)
+            TournamentMatch::create([
+                'category_id' => $categoryId,
+                'stage' => $stage,
+                'round_name' => 'Penentuan Tempat Ke-5',
+                'bracket_position' => 1,
+                'home_team_id' => null,
+                'away_team_id' => null,
+                'status' => 'scheduled',
+                'field_number' => 3,
+            ]);
+        }
     }
 };
 ?>

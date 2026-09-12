@@ -188,6 +188,27 @@ class TournamentMatch extends Model
                 }
                 $nextMatch->save();
             }
+
+            // 🎖️ If 5th place playoff bracket exists, advance Suku Akhir loser to 'Separuh Akhir Tempat Ke-5'
+            if (in_array($this->round_name, ['Suku Akhir', 'Quarter Final']) && $loserId) {
+                $sf5Pos = (int)ceil($pos / 2);
+                $sf5HomeSlot = ($pos % 2 !== 0);
+
+                $sf5Match = self::where('category_id', $this->category_id)
+                    ->where('stage', $this->stage)
+                    ->where('round_name', 'Separuh Akhir Tempat Ke-5')
+                    ->where('bracket_position', $sf5Pos)
+                    ->first();
+
+                if ($sf5Match) {
+                    if ($sf5HomeSlot) {
+                        $sf5Match->home_team_id = $loserId;
+                    } else {
+                        $sf5Match->away_team_id = $loserId;
+                    }
+                    $sf5Match->save();
+                }
+            }
         }
         // CASE 2: Semi-Finals (Separuh Akhir -> Akhir & Penentuan Tempat Ke-3)
         elseif (in_array($this->round_name, ['Separuh Akhir', 'Semi Final'])) {
@@ -227,6 +248,26 @@ class TournamentMatch extends Model
                 }
             }
         }
+        // CASE 3: 5th Place Semi-Finals (Separuh Akhir Tempat Ke-5 -> Penentuan Tempat Ke-5)
+        elseif ($this->round_name === 'Separuh Akhir Tempat Ke-5') {
+            $isHomeSlot = ($pos === 1); // SF5 Match 1 -> Home slot, SF5 Match 2 -> Away slot
+
+            // 🎖️ Winner goes to 5th PLACE FINAL (Penentuan Tempat Ke-5)
+            $fifthMatch = self::where('category_id', $this->category_id)
+                ->where('stage', $this->stage)
+                ->where('round_name', 'Penentuan Tempat Ke-5')
+                ->where('bracket_position', 1)
+                ->first();
+
+            if ($fifthMatch) {
+                if ($isHomeSlot) {
+                    $fifthMatch->home_team_id = $winnerId;
+                } else {
+                    $fifthMatch->away_team_id = $winnerId;
+                }
+                $fifthMatch->save();
+            }
+        }
     }
 
     public function clearPromotedKnockoutSlot(): void
@@ -262,6 +303,24 @@ class TournamentMatch extends Model
                 }
                 $nextMatch->save();
             }
+
+            // Also clear loser from Separuh Akhir Tempat Ke-5 if applicable
+            if (in_array($this->round_name, ['Suku Akhir', 'Quarter Final'])) {
+                $sf5Match = self::where('category_id', $this->category_id)
+                    ->where('stage', $this->stage)
+                    ->where('round_name', 'Separuh Akhir Tempat Ke-5')
+                    ->where('bracket_position', $nextPos)
+                    ->first();
+
+                if ($sf5Match && $sf5Match->status === 'scheduled') {
+                    if ($isHomeSlot) {
+                        $sf5Match->home_team_id = null;
+                    } else {
+                        $sf5Match->away_team_id = null;
+                    }
+                    $sf5Match->save();
+                }
+            }
         } elseif (in_array($this->round_name, ['Separuh Akhir', 'Semi Final'])) {
             $isHomeSlot = ($pos === 1);
 
@@ -293,6 +352,23 @@ class TournamentMatch extends Model
                     $thirdMatch->away_team_id = null;
                 }
                 $thirdMatch->save();
+            }
+        } elseif ($this->round_name === 'Separuh Akhir Tempat Ke-5') {
+            $isHomeSlot = ($pos === 1);
+
+            $fifthMatch = self::where('category_id', $this->category_id)
+                ->where('stage', $this->stage)
+                ->where('round_name', 'Penentuan Tempat Ke-5')
+                ->where('bracket_position', 1)
+                ->first();
+
+            if ($fifthMatch && $fifthMatch->status === 'scheduled') {
+                if ($isHomeSlot) {
+                    $fifthMatch->home_team_id = null;
+                } else {
+                    $fifthMatch->away_team_id = null;
+                }
+                $fifthMatch->save();
             }
         }
     }
