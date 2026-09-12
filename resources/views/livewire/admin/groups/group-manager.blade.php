@@ -63,6 +63,10 @@ new class extends Component
         } elseif ($category->isRoundRobinOnly() || $category->slug === 'ppki') {
             // PPKI is pure Round Robin (All teams in 1 Single Group)
             $numGroups = 1;
+        } elseif ($category->slug === 'u12' && $totalTeams >= 48) {
+            // For U12 with large turnout (48-64 teams), ALWAYS use 16 groups (power of 2)
+            // 62 teams = 14 groups of 4 and 2 groups of 3. Perfectly fits 8 fields & 32-team Knockout!
+            $numGroups = 16;
         } else {
             $defaultPerGroup = $category->teams_per_group ?: 5;
             $rawGroups = (int) ceil($totalTeams / $defaultPerGroup);
