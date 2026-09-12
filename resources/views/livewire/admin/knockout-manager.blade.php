@@ -79,6 +79,13 @@ new class extends Component {
         $this->selectedCategory = null;
     }
 
+    public function syncFifthPlace($categoryId)
+    {
+        TournamentMatch::syncFifthPlaceBracket($categoryId);
+        session()->flash('success', 'Perlawanan Tempat Ke-5 berjaya disegerakkan!');
+        $this->selectedCategory = null;
+    }
+
     public function deleteKnockout($categoryId)
     {
         TournamentMatch::where('category_id', $categoryId)
@@ -486,6 +493,9 @@ new class extends Component {
                             <a href="{{ route('admin.knockout.show', $category->id) }}" class="flex-1 text-center bg-white border-2 border-primary text-primary hover:bg-primary hover:text-white font-bold py-2.5 rounded-xl transition-colors text-sm">
                                 {{ __('Lihat Carta') }}
                             </a>
+                            <button wire:click="syncFifthPlace({{ $category->id }})" class="px-2.5 bg-base-200 hover:bg-emerald-50 hover:text-emerald-700 text-base-content/60 font-bold rounded-xl transition-colors text-xs flex items-center gap-1" title="{{ __('Segerak Tempat Ke-5') }}">
+                                <span>⚡</span><span class="hidden sm:inline">Ke-5</span>
+                            </button>
                             @if(session('auth_role') === 'master')
                             <button wire:click="selectCategory({{ $category->id }})" class="px-3 bg-base-200 hover:bg-primary/10 hover:text-primary text-base-content/60 font-bold rounded-xl transition-colors text-sm" title="{{ __('Jana Semula') }}">
                                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>

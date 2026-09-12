@@ -373,6 +373,131 @@ class TournamentMatch extends Model
         }
     }
 
+    /**
+     * Self-healing sync: ensures 5th place classification matches exist and
+     * auto-promotes losers from already-completed Suku Akhir matches.
+     */
+    public static function syncFifthPlaceBracket(int $categoryId, ?string $stage = null): void
+    {
+        $stages = $stage ? [$stage] : ['trophy_knockout', 'cup_knockout'];
+
+        foreach ($stages as $stg) {
+            $hasQF = self::where('category_id', $categoryId)
+                ->where('stage', $stg)
+                ->whereIn('round_name', ['Suku Akhir', 'Quarter Final'])
+                ->exists();
+
+            if (!$hasQF) {
+                continue;
+            }
+
+            // 1. Ensure 2 placeholder matches for 'Separuh Akhir Tempat Ke-5' exist
+            for ($m = 1; $m <= 2; $m++) {
+                $sf5 = self::where('category_id', $categoryId)
+                    ->where('stage', $stg)
+                    ->where('round_name', 'Separuh Akhir Tempat Ke-5')
+                    ->where('bracket_position', $m)
+                    ->first();
+
+                if (!$sf5) {
+                    self::create([
+                        'category_id'      => $categoryId,
+                        'stage'            => $stg,
+                        'round_name'       => 'Separuh Akhir Tempat Ke-5',
+                        'bracket_position' => $m,
+                        'home_team_id'     => null,
+                        'away_team_id'     => null,
+                        'status'           => 'scheduled',
+                        'field_number'     => $m + 2, // Field 3 or 4
+                    ]);
+                }
+            }
+
+            // 2. Ensure 1 placeholder match for 'Penentuan Tempat Ke-5' exists
+            $p5 = self::where('category_id', $categoryId)
+                ->where('stage', $stg)
+                ->where('round_name', 'Penentuan Tempat Ke-5')
+                ->where('bracket_position', 1)
+                ->first();
+
+            if (!$p5) {
+                self::create([
+                    'category_id'      => $categoryId,
+                    'stage'            => $stg,
+                    'round_name'       => 'Penentuan Tempat Ke-5',
+                    'bracket_position' => 1,
+                    'home_team_id'     => null,
+                    'away_team_id'     => null,
+                    'status'           => 'scheduled',
+                    'field_number'     => 3,
+                ]);
+            }
+
+            // 3. For any already-completed Suku Akhir matches, populate the losers into SF5!
+            $qfMatches = self::where('category_id', $categoryId)
+                ->where('stage', $stg)
+                ->whereIn('round_name', ['Suku Akhir', 'Quarter Final'])
+                ->get();
+
+            foreach ($qfMatches as $qf) {
+                if ($qf->winner_team_id) {
+                    $pos = (int)$qf->bracket_position;
+                    $loserId = ($qf->winner_team_id == $qf->home_team_id) ? $qf->away_team_id : $qf->home_team_id;
+
+                    if ($loserId) {
+                        $sf5Pos = (int)ceil($pos / 2);
+                        $sf5HomeSlot = ($pos % 2 !== 0);
+
+                        $sf5Match = self::where('category_id', $categoryId)
+                            ->where('stage', $stg)
+                            ->where('round_name', 'Separuh Akhir Tempat Ke-5')
+                            ->where('bracket_position', $sf5Pos)
+                            ->first();
+
+                        if ($sf5Match && $sf5Match->status === 'scheduled') {
+                            if ($sf5HomeSlot && !$sf5Match->home_team_id) {
+                                $sf5Match->home_team_id = $loserId;
+                                $sf5Match->save();
+                            } elseif (!$sf5HomeSlot && !$sf5Match->away_team_id) {
+                                $sf5Match->away_team_id = $loserId;
+                                $sf5Match->save();
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 4. For any already-completed SF Ke-5 matches, populate the winners into Penentuan Tempat Ke-5!
+            $sf5Matches = self::where('category_id', $categoryId)
+                ->where('stage', $stg)
+                ->where('round_name', 'Separuh Akhir Tempat Ke-5')
+                ->get();
+
+            foreach ($sf5Matches as $sf5) {
+                if ($sf5->winner_team_id) {
+                    $pos = (int)$sf5->bracket_position;
+                    $isHomeSlot = ($pos === 1);
+
+                    $fifthMatch = self::where('category_id', $categoryId)
+                        ->where('stage', $stg)
+                        ->where('round_name', 'Penentuan Tempat Ke-5')
+                        ->where('bracket_position', 1)
+                        ->first();
+
+                    if ($fifthMatch && $fifthMatch->status === 'scheduled') {
+                        if ($isHomeSlot && !$fifthMatch->home_team_id) {
+                            $fifthMatch->home_team_id = $sf5->winner_team_id;
+                            $fifthMatch->save();
+                        } elseif (!$isHomeSlot && !$fifthMatch->away_team_id) {
+                            $fifthMatch->away_team_id = $sf5->winner_team_id;
+                            $fifthMatch->save();
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     public function updateGroupStandings(): void
     {
         if (!$this->group_id) return;

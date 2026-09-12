@@ -106,6 +106,20 @@ Route::get('/clear-all-cache', function () {
         $extraMsg .= "<p style='color:#b91c1c; font-size:12px; margin-top:6px;'>Nota pengiraan: " . htmlspecialchars($e->getMessage()) . "</p>";
     }
 
+    // 4. Sync 5th place classification bracket for all categories with knockouts
+    try {
+        if (class_exists(\App\Models\TournamentMatch::class) && method_exists(\App\Models\TournamentMatch::class, 'syncFifthPlaceBracket')) {
+            $knockoutCategories = \App\Models\Category::whereHas('matches', function($q) {
+                $q->whereIn('stage', ['trophy_knockout', 'cup_knockout']);
+            })->get();
+            foreach ($knockoutCategories as $kCat) {
+                \App\Models\TournamentMatch::syncFifthPlaceBracket($kCat->id);
+            }
+        }
+    } catch (\Throwable $e) {
+        // Continue
+    }
+
     return "<div style='font-family:sans-serif; text-align:center; padding:50px; background:#f0fdf4; border:2px solid #86efac; border-radius:20px; max-width:600px; margin:50px auto;'>
         <h2 style='color:#15803d; margin-bottom:10px;'>✅ Semua Cache & Fail Lama Berjaya Dibersihkan!</h2>
         <p style='color:#166534; font-size:14px;'>View cache, route cache, config cache, dan fail bertindih telah dikosongkan.</p>

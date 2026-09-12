@@ -19,10 +19,20 @@ new class extends Component {
     public function mount(Category $category)
     {
         $this->category = $category;
+        TournamentMatch::syncFifthPlaceBracket($this->category->id, 'trophy_knockout');
+        TournamentMatch::syncFifthPlaceBracket($this->category->id, 'cup_knockout');
+    }
+
+    public function syncFifthPlace()
+    {
+        TournamentMatch::syncFifthPlaceBracket($this->category->id, $this->activeTab);
+        session()->flash('success', 'Perlawanan Tempat Ke-5 berjaya disegerakkan!');
     }
 
     public function getMatchesProperty()
     {
+        TournamentMatch::syncFifthPlaceBracket($this->category->id, $this->activeTab);
+
         $roundOrder = [
             'Pusingan ke-32' => 1,
             'Pusingan 32' => 1,
@@ -277,6 +287,12 @@ new class extends Component {
             </div>
             <p class="text-base-content/60 mt-1 ml-10">{{ __('Urus padang, jadual masa, dan susunan perlawanan kalah mati.') }}</p>
         </div>
+
+        <button type="button" wire:click="syncFifthPlace" wire:loading.attr="disabled" class="btn btn-sm bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-sm flex items-center gap-2">
+            <span wire:loading.remove wire:target="syncFifthPlace">⚡</span>
+            <svg wire:loading wire:target="syncFifthPlace" class="animate-spin w-4 h-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+            {{ __('Segerak Tempat Ke-5') }}
+        </button>
     </div>
 
     <!-- Alerts -->
