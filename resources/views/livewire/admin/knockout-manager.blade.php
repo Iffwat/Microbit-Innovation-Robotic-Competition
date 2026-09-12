@@ -124,12 +124,20 @@ new class extends Component {
         // Unseeded pool for P32 real matches: 7 Tier1 + 13 Tier2 = 20 teams (10 matches)
         $unseededPool = array_merge($remainingTier1, $tier2List);
 
-        // Prevent same-group matchups in the 10 real matches
+        // Prevent same-group and same-school matchups in the 10 real matches
         for ($i = 0; $i < 10; $i++) {
             $oppIdx = count($unseededPool) - 1 - $i;
-            if (isset($unseededPool[$i]->group_letter, $unseededPool[$oppIdx]->group_letter) &&
-                $unseededPool[$i]->group_letter === $unseededPool[$oppIdx]->group_letter &&
-                $oppIdx > $i + 1) {
+            $hTeamId = $unseededPool[$i]->team_id ?? null;
+            $aTeamId = $unseededPool[$oppIdx]->team_id ?? null;
+            $hTeam = $hTeamId ? \App\Models\Team::find($hTeamId) : null;
+            $aTeam = $aTeamId ? \App\Models\Team::find($aTeamId) : null;
+
+            $sameGroup = (isset($unseededPool[$i]->group_letter, $unseededPool[$oppIdx]->group_letter) &&
+                          $unseededPool[$i]->group_letter === $unseededPool[$oppIdx]->group_letter);
+            $sameSchool = ($hTeam && $aTeam && !empty($hTeam->school_name) &&
+                           strcasecmp(trim($hTeam->school_name), trim($aTeam->school_name)) === 0);
+
+            if (($sameGroup || $sameSchool) && $oppIdx > $i + 1) {
                 $temp = $unseededPool[$oppIdx];
                 $unseededPool[$oppIdx] = $unseededPool[$oppIdx - 1];
                 $unseededPool[$oppIdx - 1] = $temp;
