@@ -383,6 +383,10 @@ new class extends Component
             }
             $match->away_score = null;
         } else {
+            if ($this->soccerHomeScore === $this->soccerAwayScore) {
+                $this->js("alert('Perhatian: Skor seri (" . $this->soccerHomeScore . " - " . $this->soccerAwayScore . ") tidak dibenarkan! Semua perlawanan mesti ada pemenang. Sila tentukan pemenang penalti / sudden death di padang.');");
+                return;
+            }
             $match->home_score = $this->soccerHomeScore;
             $match->away_score = $this->soccerAwayScore;
         }
@@ -397,6 +401,7 @@ new class extends Component
     {
         $match = TournamentMatch::find($matchId);
         if ($match) {
+            $groupId = $match->group_id;
             $match->update([
                 'status' => 'scheduled',
                 'home_score' => null,
@@ -408,8 +413,8 @@ new class extends Component
                 'winner_team_id' => null,
                 'completed_at' => null
             ]);
-            if ($match->stage === 'group' && $match->group_id) {
-                $match->updateGroupStandings(); // To recalculate points
+            if ($match->stage === 'group' && $groupId) {
+                TournamentMatch::recalculateGroupStandings($groupId);
             } elseif ($match->isKnockout()) {
                 $match->clearPromotedKnockoutSlot();
             }

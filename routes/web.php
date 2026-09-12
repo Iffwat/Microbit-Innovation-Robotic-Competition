@@ -75,10 +75,19 @@ Route::get('/clear-all-cache', function () {
     };
     $cleanDir(storage_path('framework/views'));
 
-    $removedCount = count($removedLegacyFiles);
-    $extraMsg = $removedCount > 0 
-        ? "<p style='color:#047857; font-size:12px; margin-top:6px;'>Dibersihkan $removedCount fail legasi lama/unicode: " . htmlspecialchars(implode(', ', array_slice($removedLegacyFiles, 0, 5))) . "</p>"
-        : "";
+    // 3. Recalculate all group standings from completed matches to eliminate redundant matches and phantom draws
+    $recalculatedGroupsCount = 0;
+    try {
+        $groups = \App\Models\Group::all();
+        foreach ($groups as $grp) {
+            \App\Models\TournamentMatch::recalculateGroupStandings($grp->id);
+            $recalculatedGroupsCount++;
+        }
+    } catch (\Throwable $e) {
+        // Continue
+    }
+
+    $extraMsg .= "<p style='color:#1d4ed8; font-size:12px; margin-top:6px;'>Kedudukan $recalculatedGroupsCount kumpulan telah dikira semula secara tepat berdasarkan keputusan perlawanan sebenar.</p>";
 
     return "<div style='font-family:sans-serif; text-align:center; padding:50px; background:#f0fdf4; border:2px solid #86efac; border-radius:20px; max-width:600px; margin:50px auto;'>
         <h2 style='color:#15803d; margin-bottom:10px;'>✅ Semua Cache & Fail Lama Berjaya Dibersihkan!</h2>

@@ -297,46 +297,102 @@ class TournamentMatch extends Model
         }
     }
 
-    private function updateGroupStandings(): void
+    public function updateGroupStandings(): void
     {
-        $homeGT = GroupTeam::where('group_id', $this->group_id)
-                           ->where('team_id', $this->home_team_id)->first();
-        
-        if (!$homeGT) return;
+        if (!$this->group_id) return;
+        self::recalculateGroupStandings((int)$this->group_id);
+    }
 
-        $isObstacle = $this->group && $this->group->game_type === 'obstacle';
+    public static function recalculateGroupStandings(int $groupId): void
+    {
+        $group = Group::find($groupId);
+        if (!$group) return;
+
+        $isObstacle = $group->game_type === 'obstacle';
+        $groupTeams = GroupTeam::where('group_id', $groupId)->get();
 
         if ($isObstacle) {
-            $homeGT->played++;
-            $homeGT->goals_for = $this->home_score ?? 0; // Store best time here for easy sorting later
-            $homeGT->recalculate();
+            foreach ($groupTeams as $gt) {
+                $completedMatches = self::where('group_id', $groupId)
+                    ->where('home_team_id', $gt->team_id)
+                    ->where('status', 'completed')
+                    ->whereNotNull('home_score')
+                    ->get();
+
+                $played = $completedMatches->count();
+                $bestTime = $completedMatches->min('home_score') ?? 0;
+
+                $gt->update([
+                    'played' => $played,
+                    'won' => 0,
+                    'drawn' => 0,
+                    'lost' => 0,
+                    'goals_for' => $bestTime,
+                    'goals_against' => 0,
+                    'goal_difference' => 0,
+                    'points' => 0,
+                ]);
+            }
             return;
         }
 
-        $awayGT = GroupTeam::where('group_id', $this->group_id)
-                           ->where('team_id', $this->away_team_id)->first();
+        // For soccer: recalculate cleanly from all completed matches in this group
+        $completedMatches = self::where('group_id', $groupId)
+            ->where('status', 'completed')
+            ->whereNotNull('home_score')
+            ->whereNotNull('away_score')
+            ->get();
 
-        if (!$awayGT) return;
+        foreach ($groupTeams as $gt) {
+            $teamId = $gt->team_id;
+            $played = 0;
+            $won = 0;
+            $drawn = 0;
+            $lost = 0;
+            $goalsFor = 0;
+            $goalsAgainst = 0;
 
-        $homeGT->played++;
-        $awayGT->played++;
-        $homeGT->goals_for      += $this->home_score;
-        $homeGT->goals_against  += $this->away_score;
-        $awayGT->goals_for      += $this->away_score;
-        $awayGT->goals_against  += $this->home_score;
+            foreach ($completedMatches as $m) {
+                if ($m->home_team_id == $teamId) {
+                    $played++;
+                    $goalsFor += (int)$m->home_score;
+                    $goalsAgainst += (int)$m->away_score;
 
-        if ($this->home_score > $this->away_score) {
-            $homeGT->won++;
-            $awayGT->lost++;
-        } elseif ($this->away_score > $this->home_score) {
-            $awayGT->won++;
-            $homeGT->lost++;
-        } else {
-            $homeGT->drawn++;
-            $awayGT->drawn++;
+                    if ($m->home_score > $m->away_score) {
+                        $won++;
+                    } elseif ($m->home_score < $m->away_score) {
+                        $lost++;
+                    } else {
+                        $drawn++;
+                    }
+                } elseif ($m->away_team_id == $teamId) {
+                    $played++;
+                    $goalsFor += (int)$m->away_score;
+                    $goalsAgainst += (int)$m->home_score;
+
+                    if ($m->away_score > $m->home_score) {
+                        $won++;
+                    } elseif ($m->away_score < $m->home_score) {
+                        $lost++;
+                    } else {
+                        $drawn++;
+                    }
+                }
+            }
+
+            $goalDiff = $goalsFor - $goalsAgainst;
+            $points = ($won * 3) + ($drawn * 1);
+
+            $gt->update([
+                'played' => $played,
+                'won' => $won,
+                'drawn' => $drawn,
+                'lost' => $lost,
+                'goals_for' => $goalsFor,
+                'goals_against' => $goalsAgainst,
+                'goal_difference' => $goalDiff,
+                'points' => $points,
+            ]);
         }
-
-        $homeGT->recalculate();
-        $awayGT->recalculate();
     }
 }
