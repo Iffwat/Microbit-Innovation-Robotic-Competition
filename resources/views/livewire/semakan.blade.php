@@ -11,7 +11,7 @@ use Livewire\Component;
 new class extends Component {
     
     #[Url(as: 'tab')]
-    public string $activeTab = 'search';
+    public string $activeTab = 'search'; // 'search', 'giliran', 'standings', 'knockout'
 
     #[Url(as: 'q')]
     public string $search = '';
@@ -20,6 +20,10 @@ new class extends Component {
     
     public string $selectedFilterId = '';
     public ?int $selectedKnockoutCategoryId = null;
+
+    // Giliran / Field Queue Filters
+    public string $selectedFieldFilter = '';
+    public string $queueSearch = '';
 
     public function mount()
     {
@@ -38,6 +42,7 @@ new class extends Component {
     public function viewTeam($teamId)
     {
         $this->viewTeamId = $teamId;
+        $this->activeTab = 'search';
     }
 
     public function clearViewTeam()
@@ -69,7 +74,7 @@ new class extends Component {
         $team = Team::with(['category', 'groupTeams.group'])->find($this->viewTeamId);
         if (!$team) return null;
         
-        $matches = TournamentMatch::with(['homeTeam', 'awayTeam', 'group'])
+        $matches = TournamentMatch::with(['homeTeam', 'awayTeam', 'group', 'category'])
             ->where('home_team_id', $this->viewTeamId)
             ->orWhere('away_team_id', $this->viewTeamId)
             ->orderBy('id')
@@ -87,6 +92,343 @@ new class extends Component {
         return Category::all();
     }
 
+    #[Computed]
+    public function availableFields()
+    {
+        return TournamentMatch::whereNotNull('field_number')
+            ->select('field_number')
+            ->distinct()
+            ->orderByRaw('LENGTH(field_number)')
+            ->orderBy('field_number')
+            ->pluck('field_number');
+    }
+
+    #[Computed]
+    public function activeLiveCalls()
+    {
+        $calls = \Illuminate\Support\Facades\Cache::get('live_tv_calls', []);
+        $activeCallMatchIds = [];
+        foreach ($calls as $mId => $cData) {
+            if (isset($cData['expires_at']) && $cData['expires_at'] > now()->timestamp) {
+                $activeCallMatchIds[] = (int)$mId;
+            }
+        }
+        return $activeCallMatchIds;
+    }
+
+    public function getFieldQueueData(string $field)
+    {
+        $sortBy = \Illuminate\Support\Facades\Cache::get('field_sort_' . $field, str_contains($field, 'Sky Soccer') ? 'interleaved_round' : 'default');
+
+        $matches = TournamentMatch::with(['homeTeam', 'awayTeam', 'category', 'group'])
+            ->where('field_number', $field)
+            ->get();
+
+        if ($sortBy === 'interleaved_round') {
+            $sorted = $matches->sort(function ($a, $b) {
+                $statusOrder = ['in_progress' => 1, 'scheduled' => 2, 'completed' => 3, 'walkover' => 4, 'bye' => 4];
+                $sA = $statusOrder[$a->status] ?? 5;
+                $sB = $statusOrder[$b->status] ?? 5;
+                if ($sA !== $sB) return $sA <=> $sB;
+
+                preg_match('/P(\d+)/i', (string)$a->round_name, $matchA);
+                preg_match('/P(\d+)/i', (string)$b->round_name, $matchB);
+                $rA = isset($matchA[1]) ? (int)$matchA[1] : 999;
+                $rB = isset($matchB[1]) ? (int)$matchB[1] : 999;
+                if ($rA !== $rB) return $rA <=> $rB;
+
+                $catA = $a->category->sort_order ?? $a->category_id;
+                $catB = $b->category->sort_order ?? $b->category_id;
+                if ($catA !== $catB) return $catA <=> $catB;
+
+                $grpA = $a->group->group_letter ?? $a->group->group_name ?? '';
+                $grpB = $b->group->group_letter ?? $b->group->group_name ?? '';
+                if ($grpA !== $grpB) return strcmp($grpA, $grpB);
+
+                if ($a->scheduled_time && $b->scheduled_time) {
+                    return $a->scheduled_time <=> $b->scheduled_time;
+                }
+                return $a->id <=> $b->id;
+            })->values();
+        } elseif ($sortBy === 'group_asc') {
+            $sorted = $matches->sort(function ($a, $b) {
+                $statusOrder = ['in_progress' => 1, 'scheduled' => 2, 'completed' => 3, 'walkover' => 4, 'bye' => 4];
+                $sA = $statusOrder[$a->status] ?? 5;
+                $sB = $statusOrder[$b->status] ?? 5;
+                if ($sA !== $sB) return $sA <=> $sB;
+
+                $grpA = $a->group->group_name ?? '';
+                $grpB = $b->group->group_name ?? '';
+                if ($grpA !== $grpB) return strcmp($grpA, $grpB);
+
+                preg_match('/P(\d+)/i', (string)$a->round_name, $matchA);
+                preg_match('/P(\d+)/i', (string)$b->round_name, $matchB);
+                $rA = isset($matchA[1]) ? (int)$matchA[1] : 999;
+                $rB = isset($matchB[1]) ? (int)$matchB[1] : 999;
+                if ($rA !== $rB) return $rA <=> $rB;
+
+                if ($a->scheduled_time && $b->scheduled_time) {
+                    return $a->scheduled_time <=> $b->scheduled_time;
+                }
+                return $a->id <=> $b->id;
+            })->values();
+        } elseif ($sortBy === 'category_asc') {
+            $sorted = $matches->sort(function ($a, $b) {
+                $statusOrder = ['in_progress' => 1, 'scheduled' => 2, 'completed' => 3, 'walkover' => 4, 'bye' => 4];
+                $sA = $statusOrder[$a->status] ?? 5;
+                $sB = $statusOrder[$b->status] ?? 5;
+                if ($sA !== $sB) return $sA <=> $sB;
+
+                $catA = $a->category->sort_order ?? $a->category_id;
+                $catB = $b->category->sort_order ?? $b->category_id;
+                if ($catA !== $catB) return $catA <=> $catB;
+
+                preg_match('/P(\d+)/i', (string)$a->round_name, $matchA);
+                preg_match('/P(\d+)/i', (string)$b->round_name, $matchB);
+                $rA = isset($matchA[1]) ? (int)$matchA[1] : 999;
+                $rB = isset($matchB[1]) ? (int)$matchB[1] : 999;
+                if ($rA !== $rB) return $rA <=> $rB;
+
+                if ($a->scheduled_time && $b->scheduled_time) {
+                    return $a->scheduled_time <=> $b->scheduled_time;
+                }
+                return $a->id <=> $b->id;
+            })->values();
+        } else {
+            $sorted = $matches->sort(function ($a, $b) {
+                $statusOrder = ['in_progress' => 1, 'scheduled' => 2, 'completed' => 3, 'walkover' => 4, 'bye' => 4];
+                $sA = $statusOrder[$a->status] ?? 5;
+                $sB = $statusOrder[$b->status] ?? 5;
+                if ($sA !== $sB) return $sA <=> $sB;
+
+                if ($a->scheduled_time && $b->scheduled_time) {
+                    return $a->scheduled_time <=> $b->scheduled_time;
+                }
+                return $a->id <=> $b->id;
+            })->values();
+        }
+
+        $activeMatch = $sorted->firstWhere('status', 'in_progress');
+        $scheduledMatches = $sorted->where('status', 'scheduled')->values();
+        $completedCount = $sorted->where('status', 'completed')->count();
+
+        return [
+            'field' => $field,
+            'active' => $activeMatch,
+            'upcoming' => $scheduledMatches,
+            'completed_count' => $completedCount,
+            'total_pending' => $scheduledMatches->count() + ($activeMatch ? 1 : 0),
+        ];
+    }
+
+    public function getTeamTurnStatus(int $teamId)
+    {
+        // 1. Is team involved in an active Live TV call?
+        $activeCallIds = $this->activeLiveCalls;
+        if (!empty($activeCallIds)) {
+            $calledMatch = TournamentMatch::with(['homeTeam', 'awayTeam', 'category'])
+                ->whereIn('id', $activeCallIds)
+                ->where(function ($q) use ($teamId) {
+                    $q->where('home_team_id', $teamId)->orWhere('away_team_id', $teamId);
+                })
+                ->where('status', 'scheduled')
+                ->first();
+
+            if ($calledMatch) {
+                return [
+                    'state' => 'called',
+                    'match' => $calledMatch,
+                    'field' => $calledMatch->field_number,
+                    'opponent' => $calledMatch->home_team_id === $teamId ? $calledMatch->awayTeam : $calledMatch->homeTeam,
+                    'title' => __('PANGGILAN LAPOR DIRI!'),
+                    'message' => __('Pasukan anda sedang dipanggil ke :field!', ['field' => $calledMatch->field_number]),
+                    'submessage' => __('Sila lapor diri ke meja pengadil padang dengan segera.')
+                ];
+            }
+        }
+
+        // 2. Is team currently playing in an in_progress match?
+        $inProgressMatch = TournamentMatch::with(['homeTeam', 'awayTeam', 'category', 'group'])
+            ->where(function ($q) use ($teamId) {
+                $q->where('home_team_id', $teamId)->orWhere('away_team_id', $teamId);
+            })
+            ->where('status', 'in_progress')
+            ->first();
+
+        if ($inProgressMatch) {
+            $opp = $inProgressMatch->home_team_id === $teamId ? $inProgressMatch->awayTeam : $inProgressMatch->homeTeam;
+            return [
+                'state' => 'in_progress',
+                'match' => $inProgressMatch,
+                'field' => $inProgressMatch->field_number,
+                'opponent' => $opp,
+                'title' => __('SEDANG BERLANGSUNG SEKARANG'),
+                'message' => __('Perlawanan anda sedang berlangsung di :field', ['field' => $inProgressMatch->field_number]),
+                'submessage' => $opp ? __('Lawan:') . ' ' . $opp->team_name : ''
+            ];
+        }
+
+        // 3. Find the next scheduled match for this team
+        $nextScheduled = TournamentMatch::with(['homeTeam', 'awayTeam', 'category', 'group'])
+            ->where(function ($q) use ($teamId) {
+                $q->where('home_team_id', $teamId)->orWhere('away_team_id', $teamId);
+            })
+            ->where('status', 'scheduled')
+            ->orderBy('scheduled_time')
+            ->orderBy('id')
+            ->first();
+
+        if (!$nextScheduled) {
+            $completedCount = TournamentMatch::where(function ($q) use ($teamId) {
+                $q->where('home_team_id', $teamId)->orWhere('away_team_id', $teamId);
+            })->where('status', 'completed')->count();
+
+            if ($completedCount > 0) {
+                return [
+                    'state' => 'completed',
+                    'title' => __('SEMUA PERLAWANAN SELESAI'),
+                    'message' => __('Semua perlawanan pasukan anda telah selesai dimainkan.'),
+                    'submessage' => __('Sila semak kedudukan terkini dalam tab Kedudukan atau tunggu carta Kalah Mati.')
+                ];
+            }
+
+            return [
+                'state' => 'none',
+                'title' => __('TIADA PERLAWANAN DIJADUALKAN'),
+                'message' => __('Jadual perlawanan belum dikeluarkan atau tiada giliran menunggu.'),
+                'submessage' => ''
+            ];
+        }
+
+        // Calculate queue position on its assigned field
+        $field = $nextScheduled->field_number;
+        $queueData = $field ? $this->getFieldQueueData($field) : null;
+
+        $turnPosition = null;
+        $matchesAhead = null;
+        $activeOnField = null;
+
+        if ($queueData) {
+            $activeOnField = $queueData['active'];
+            $upcomingList = $queueData['upcoming'];
+            
+            $matchIndex = $upcomingList->search(function ($m) use ($nextScheduled) {
+                return $m->id === $nextScheduled->id;
+            });
+
+            if ($matchIndex !== false) {
+                $turnPosition = $matchIndex + 1;
+                $matchesAhead = $matchIndex;
+            }
+        }
+
+        $opponent = $nextScheduled->home_team_id === $teamId ? $nextScheduled->awayTeam : $nextScheduled->homeTeam;
+
+        if ($turnPosition === 1) {
+            return [
+                'state' => 'next_up',
+                'match' => $nextScheduled,
+                'field' => $field,
+                'opponent' => $opponent,
+                'turn_position' => 1,
+                'matches_ahead' => 0,
+                'active_on_field' => $activeOnField,
+                'title' => __('🔥 GILIRAN SETERUSNYA (NEXT MATCH)!'),
+                'message' => __('Perlawanan anda adalah giliran berikutnya di :field.', ['field' => $field ?? __('Padang')]),
+                'submessage' => __('Sila bersedia di tepi padang') . ($nextScheduled->scheduled_time ? ' (' . __('Anggaran:') . ' ' . $nextScheduled->scheduled_time->format('h:i A') . ')' : '')
+            ];
+        }
+
+        return [
+            'state' => 'queued',
+            'match' => $nextScheduled,
+            'field' => $field,
+            'opponent' => $opponent,
+            'turn_position' => $turnPosition,
+            'matches_ahead' => $matchesAhead,
+            'active_on_field' => $activeOnField,
+            'title' => $turnPosition ? __('Giliran ke-:pos di :field', ['pos' => $turnPosition, 'field' => $field]) : __('⏳ PERLAWANAN MENUNGGU'),
+            'message' => ($matchesAhead !== null && $matchesAhead > 0) 
+                ? ($matchesAhead === 1 ? __('Lagi 1 perlawanan sebelum giliran anda') : __('Lagi :count perlawanan sebelum giliran anda', ['count' => $matchesAhead]))
+                : __('Menunggu giliran di padang'),
+            'submessage' => $nextScheduled->scheduled_time ? __('Anggaran Masa:') . ' ' . $nextScheduled->scheduled_time->format('h:i A') : ''
+        ];
+    }
+
+    public function getMatchTurnBadge(TournamentMatch $match, int $teamId)
+    {
+        if ($match->status === 'completed') {
+            return ['type' => 'completed', 'label' => '✓ ' . __('Selesai'), 'class' => 'bg-emerald-100 text-emerald-800 border border-emerald-200'];
+        }
+        if ($match->status === 'in_progress') {
+            return ['type' => 'in_progress', 'label' => '🔴 ' . __('Sedang Berlangsung'), 'class' => 'bg-red-500 text-white animate-pulse shadow-md shadow-red-500/30'];
+        }
+
+        if (in_array($match->id, $this->activeLiveCalls)) {
+            return ['type' => 'calling', 'label' => '🚨 ' . __('PANGGILAN LAPOR DIRI!'), 'class' => 'bg-amber-400 text-black font-black animate-bounce'];
+        }
+
+        if ($match->field_number) {
+            $queueData = $this->getFieldQueueData($match->field_number);
+            $idx = $queueData['upcoming']->search(fn($m) => $m->id === $match->id);
+            if ($idx !== false) {
+                if ($idx === 0) {
+                    return ['type' => 'next', 'label' => '🔥 ' . __('Giliran Seterusnya (Next Up)'), 'class' => 'bg-amber-500 text-white font-black animate-pulse shadow-sm shadow-amber-500/30'];
+                } else {
+                    $turnNum = $idx + 1;
+                    return ['type' => 'queue', 'label' => '⏳ ' . __('Giliran ke-:pos', ['pos' => $turnNum]) . ' (' . ($idx === 1 ? __('Lagi 1 perlawanan') : __('Lagi :count perlawanan', ['count' => $idx])) . ')', 'class' => 'bg-blue-100 text-blue-800 border border-blue-200'];
+                }
+            }
+        }
+
+        return ['type' => 'scheduled', 'label' => '⏳ ' . __('Menunggu'), 'class' => 'bg-base-200 text-base-content/70'];
+    }
+
+    #[Computed]
+    public function allFieldQueues()
+    {
+        $fields = $this->availableFields;
+        if ($this->selectedFieldFilter) {
+            $fields = $fields->filter(fn($f) => (string)$f === (string)$this->selectedFieldFilter);
+        }
+
+        $queues = [];
+        $search = strtolower(trim($this->queueSearch));
+
+        foreach ($fields as $field) {
+            $data = $this->getFieldQueueData($field);
+            if ($search !== '') {
+                $fieldMatches = str_contains(strtolower($field), $search);
+                
+                $activeMatchesSearch = false;
+                if ($data['active']) {
+                    $h = strtolower($data['active']->homeTeam->team_name ?? '');
+                    $a = strtolower($data['active']->awayTeam->team_name ?? '');
+                    $hs = strtolower($data['active']->homeTeam->school_name ?? '');
+                    $as = strtolower($data['active']->awayTeam->school_name ?? '');
+                    if (str_contains($h, $search) || str_contains($a, $search) || str_contains($hs, $search) || str_contains($as, $search)) {
+                        $activeMatchesSearch = true;
+                    }
+                }
+
+                $upcomingMatchesSearch = $data['upcoming']->filter(function ($m) use ($search) {
+                    $h = strtolower($m->homeTeam->team_name ?? '');
+                    $a = strtolower($m->awayTeam->team_name ?? '');
+                    $hs = strtolower($m->homeTeam->school_name ?? '');
+                    $as = strtolower($m->awayTeam->school_name ?? '');
+                    return str_contains($h, $search) || str_contains($a, $search) || str_contains($hs, $search) || str_contains($as, $search);
+                });
+
+                if (!$fieldMatches && !$activeMatchesSearch && $upcomingMatchesSearch->isEmpty()) {
+                    continue;
+                }
+            }
+            $queues[] = $data;
+        }
+
+        return collect($queues);
+    }
+    
     #[Computed]
     public function standingsFilters()
     {
@@ -150,7 +492,7 @@ new class extends Component {
 };
 ?>
 
-<div class="min-h-screen bg-base-200 pb-24">
+<div class="min-h-screen bg-base-200 pb-24" wire:poll.10s>
     <!-- Top Nav / Header -->
     <div class="bg-primary text-primary-content sticky top-0 z-40 shadow-md">
         <div class="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -277,6 +619,98 @@ new class extends Component {
                             </div>
                         </div>
 
+                        <!-- Personal Turn Hero Card -->
+                        @php $turnStatus = $this->getTeamTurnStatus($this->viewTeamId); @endphp
+                        @if($turnStatus)
+                            <div class="mt-5 animate-slide-up">
+                                @if($turnStatus['state'] === 'called')
+                                    <div class="bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-black p-5 rounded-3xl shadow-xl border-2 border-yellow-300 animate-pulse">
+                                        <div class="flex items-center gap-3 mb-2">
+                                            <span class="text-2xl">🚨</span>
+                                            <h3 class="text-lg font-black tracking-wider uppercase">{{ $turnStatus['title'] }}</h3>
+                                        </div>
+                                        <p class="font-black text-base">{{ $turnStatus['message'] }}</p>
+                                        <p class="text-sm font-bold opacity-90 mt-1">{{ $turnStatus['submessage'] }}</p>
+                                    </div>
+                                @elseif($turnStatus['state'] === 'in_progress')
+                                    <div class="bg-gradient-to-r from-red-600 via-rose-600 to-red-700 text-white p-5 rounded-3xl shadow-xl border-2 border-red-400 shadow-red-500/20">
+                                        <div class="flex items-center justify-between mb-2">
+                                            <div class="flex items-center gap-2">
+                                                <span class="w-3 h-3 rounded-full bg-white animate-ping"></span>
+                                                <h3 class="text-xs font-black tracking-widest uppercase bg-black/30 px-2.5 py-1 rounded-full">{{ __('LIVE DI PADANG') }}</h3>
+                                            </div>
+                                            <span class="text-xs font-black bg-white text-red-600 px-3 py-1 rounded-full uppercase">{{ $turnStatus['field'] }}</span>
+                                        </div>
+                                        <h4 class="text-xl font-black mt-1">{{ $turnStatus['title'] }}</h4>
+                                        <p class="text-sm font-bold text-white/90 mt-1">{{ $turnStatus['message'] }}</p>
+                                        @if($turnStatus['submessage'])
+                                            <p class="text-xs font-semibold text-white/80 mt-1">{{ $turnStatus['submessage'] }}</p>
+                                        @endif
+                                    </div>
+                                @elseif($turnStatus['state'] === 'next_up')
+                                    <div class="bg-gradient-to-r from-amber-500 to-orange-500 text-white p-5 rounded-3xl shadow-xl border-2 border-amber-300 shadow-orange-500/20">
+                                        <div class="flex items-center justify-between mb-2">
+                                            <span class="text-xs font-black bg-black/20 px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1.5">
+                                                <span class="w-2 h-2 rounded-full bg-yellow-300 animate-ping"></span>
+                                                {{ __('GILIRAN SETERUSNYA') }}
+                                            </span>
+                                            <span class="text-xs font-black bg-white text-amber-600 px-3 py-1 rounded-full uppercase">{{ $turnStatus['field'] }}</span>
+                                        </div>
+                                        <h4 class="text-xl font-black">{{ $turnStatus['title'] }}</h4>
+                                        <p class="text-sm font-bold text-white/95 mt-1">{{ $turnStatus['message'] }}</p>
+                                        <p class="text-xs font-semibold text-yellow-100 mt-2 flex items-center gap-1">
+                                            <span>⚠️</span>
+                                            <span>{{ $turnStatus['submessage'] }}</span>
+                                        </p>
+                                        @if($turnStatus['active_on_field'])
+                                            <div class="mt-3 pt-3 border-t border-white/20 text-xs font-medium text-white/90 flex items-center justify-between flex-wrap gap-1">
+                                                <span>{{ __('Sedang berlangsung di padang:') }}</span>
+                                                <span class="font-bold">{{ optional($turnStatus['active_on_field']->homeTeam)->team_name }} vs {{ optional($turnStatus['active_on_field']->awayTeam)->team_name }} ({{ $turnStatus['active_on_field']->home_score ?? 0 }} - {{ $turnStatus['active_on_field']->away_score ?? 0 }})</span>
+                                            </div>
+                                        @endif
+                                    </div>
+                                @elseif($turnStatus['state'] === 'queued')
+                                    <div class="bg-white border-2 border-blue-200 p-5 rounded-3xl shadow-sm">
+                                        <div class="flex items-center justify-between mb-3">
+                                            <span class="text-xs font-black bg-blue-50 text-blue-700 px-3 py-1 rounded-full uppercase tracking-wider border border-blue-200">
+                                                {{ $turnStatus['title'] }}
+                                            </span>
+                                            @if($turnStatus['submessage'])
+                                                <span class="text-xs font-bold text-base-content/60 bg-base-100 px-2.5 py-1 rounded-lg">
+                                                    {{ $turnStatus['submessage'] }}
+                                                </span>
+                                            @endif
+                                        </div>
+                                        <div class="flex items-baseline gap-2">
+                                            <span class="text-3xl font-black text-primary">{{ $turnStatus['matches_ahead'] }}</span>
+                                            <span class="text-sm font-bold text-base-content/80">{{ __('perlawanan sebelum giliran pasukan anda.') }}</span>
+                                        </div>
+                                        @if($turnStatus['opponent'])
+                                            <p class="text-xs font-semibold text-base-content/60 mt-1">
+                                                {{ __('Perlawanan seterusnya menentang:') }} <strong class="text-base-content">{{ $turnStatus['opponent']->team_name }}</strong>
+                                            </p>
+                                        @endif
+                                        @if($turnStatus['active_on_field'])
+                                            <div class="mt-3 pt-3 border-t border-base-100 text-xs text-base-content/60 flex items-center justify-between flex-wrap gap-1">
+                                                <span>{{ __('Sedang aktif di padang:') }}</span>
+                                                <span class="font-bold text-primary">{{ optional($turnStatus['active_on_field']->homeTeam)->team_name }} vs {{ optional($turnStatus['active_on_field']->awayTeam)->team_name }} ({{ $turnStatus['active_on_field']->home_score ?? 0 }} - {{ $turnStatus['active_on_field']->away_score ?? 0 }})</span>
+                                            </div>
+                                        @endif
+                                    </div>
+                                @elseif($turnStatus['state'] === 'completed')
+                                    <div class="bg-emerald-50 border border-emerald-200 p-4 rounded-3xl text-emerald-800 flex items-center gap-3">
+                                        <div class="w-10 h-10 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-600 text-lg font-black shrink-0">
+                                            ✓
+                                        </div>
+                                        <div>
+                                            <h4 class="font-black text-sm">{{ $turnStatus['title'] }}</h4>
+                                            <p class="text-xs font-medium text-emerald-700 mt-0.5">{{ $turnStatus['message'] }}</p>
+                                        </div>
+                                    </div>
+                                @endif
+                            </div>
+                        @endif
+
                         <!-- Schedule List -->
                         <div class="mt-8">
                             <h3 class="text-sm font-black text-base-content/60 uppercase tracking-widest mb-4 flex items-center gap-2">
@@ -298,6 +732,7 @@ new class extends Component {
                                             $oppScore = $isHome ? $match->away_score : $match->home_score;
                                             $isWin = $match->winner_team_id === $this->viewTeamId;
                                             $isLoss = $match->winner_team_id && $match->winner_team_id !== $this->viewTeamId;
+                                            $turnBadge = $this->getMatchTurnBadge($match, $this->viewTeamId);
                                         @endphp
                                         
                                         <div class="bg-white border-2 {{ $match->status === 'in_progress' ? 'border-primary shadow-lg shadow-primary/10' : 'border-base-200' }} rounded-2xl p-5 relative overflow-hidden">
@@ -307,14 +742,19 @@ new class extends Component {
                                                 </div>
                                             @endif
                                             
-                                            <div class="flex justify-between items-start mb-3">
-                                                <div class="inline-block bg-base-200 text-base-content/60 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">
-                                                    {{ $match->stage === 'group' ? ($match->group->group_name ?? __('Kumpulan')) : $match->round_name }}
+                                            <div class="flex justify-between items-start mb-3 gap-2 flex-wrap">
+                                                <div class="flex items-center gap-2 flex-wrap">
+                                                    <span class="inline-block bg-base-200 text-base-content/60 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">
+                                                        {{ $match->stage === 'group' ? ($match->group->group_name ?? __('Kumpulan')) : $match->round_name }}
+                                                    </span>
+                                                    <span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full {{ $turnBadge['class'] }}">
+                                                        {{ $turnBadge['label'] }}
+                                                    </span>
                                                 </div>
                                                 
                                                 @if($match->field_number)
                                                     <div class="text-xs font-bold text-secondary">
-                                                        {{ __('Padang') }} {{ $match->field_number }}
+                                                        {{ is_numeric($match->field_number) ? __('Padang') . ' ' . $match->field_number : $match->field_number }}
                                                     </div>
                                                 @endif
                                             </div>
@@ -362,7 +802,250 @@ new class extends Component {
         @endif
 
         {{-- ============================================== --}}
-        {{-- TAB 2: KEDUDUKAN LIGA (STANDINGS)              --}}
+        {{-- TAB 2: GILIRAN PADANG (LIVE FIELD QUEUES)      --}}
+        {{-- ============================================== --}}
+        @if($activeTab === 'giliran')
+            <div class="animate-fade-in space-y-6">
+                <div>
+                    <div class="flex items-center justify-between gap-2">
+                        <h2 class="text-2xl font-black text-base-content flex items-center gap-2">
+                            <span class="relative flex h-3 w-3">
+                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                            </span>
+                            {{ __('Giliran Padang') }}
+                        </h2>
+                        <span class="text-[10px] font-black bg-primary/10 text-primary px-2.5 py-1 rounded-full uppercase tracking-wider">
+                            ⚡ {{ __('Auto-Kemaskini') }}
+                        </span>
+                    </div>
+                    <p class="text-xs text-base-content/60 mt-1">{{ __('Pantau giliran perlawanan semasa mengikut padang secara langsung.') }}</p>
+                </div>
+
+                {{-- Carian Pasukan dalam Giliran --}}
+                <div class="bg-white p-2 rounded-2xl shadow-sm border border-base-200 flex items-center gap-2">
+                    <div class="pl-3 text-base-content/40">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                    </div>
+                    <input wire:model.live.debounce.300ms="queueSearch" type="text" placeholder="{{ __('Cari nama pasukan dalam senarai giliran...') }}" class="flex-1 bg-transparent py-2.5 text-sm font-medium focus:outline-none w-full">
+                    @if(strlen($queueSearch) > 0)
+                        <button wire:click="$set('queueSearch', '')" class="p-2 text-base-content/40 hover:text-base-content rounded-xl transition-colors">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    @endif
+                </div>
+
+                {{-- Field Filter Pills --}}
+                <div class="overflow-x-auto pb-2 -mx-4 px-4 hide-scrollbar">
+                    <div class="flex gap-2 w-max">
+                        <button wire:click="$set('selectedFieldFilter', '')" 
+                            class="px-4 py-2 rounded-xl text-xs font-bold border-2 transition-all whitespace-nowrap {{ $selectedFieldFilter === '' ? 'bg-primary border-primary text-white shadow-md shadow-primary/20' : 'bg-white border-base-200 text-base-content/70 hover:border-primary/50' }}">
+                            🌐 {{ __('Semua Padang') }}
+                        </button>
+                        @foreach($this->availableFields as $f)
+                            <button wire:click="$set('selectedFieldFilter', '{{ $f }}')" 
+                                class="px-4 py-2 rounded-xl text-xs font-bold border-2 transition-all whitespace-nowrap {{ $selectedFieldFilter == $f ? 'bg-primary border-primary text-white shadow-md shadow-primary/20' : 'bg-white border-base-200 text-base-content/70 hover:border-primary/50' }}">
+                                @if(is_numeric($f))
+                                    📍 {{ __('Padang') }} {{ $f }}
+                                @elseif(str_contains($f, 'Sky Soccer'))
+                                    🚁 {{ $f }}
+                                @elseif(str_contains($f, 'Course'))
+                                    🏁 {{ $f }}
+                                @else
+                                    📍 {{ $f }}
+                                @endif
+                            </button>
+                        @endforeach
+                    </div>
+                </div>
+
+                {{-- Fields Live Queue Cards --}}
+                @php $fieldQueues = $this->allFieldQueues; @endphp
+                @if($fieldQueues->isEmpty())
+                    <div class="bg-white border-2 border-base-200 border-dashed rounded-3xl p-10 text-center">
+                        <p class="text-base-content/50 font-bold">{{ __('Tiada padang atau perlawanan dijumpai.') }}</p>
+                    </div>
+                @else
+                    <div class="space-y-6">
+                        @foreach($fieldQueues as $qData)
+                            @php
+                                $field = $qData['field'];
+                                $active = $qData['active'];
+                                $upcoming = $qData['upcoming'];
+                                $isSky = str_contains($field, 'Sky Soccer');
+                            @endphp
+                            <div class="bg-white rounded-3xl border border-base-200 shadow-sm overflow-hidden">
+                                {{-- Header Padang --}}
+                                <div class="bg-gradient-to-r from-base-100 via-base-100 to-base-200/50 px-5 py-4 border-b border-base-200 flex items-center justify-between flex-wrap gap-2">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center font-black text-sm shadow-md shadow-primary/20">
+                                            @if(is_numeric($field)) {{ $field }}
+                                            @elseif($isSky) 🚁
+                                            @else 📍
+                                            @endif
+                                        </div>
+                                        <div>
+                                            <h3 class="font-black text-base-content text-base">
+                                                {{ is_numeric($field) ? __('Padang') . ' ' . $field : $field }}
+                                            </h3>
+                                            <p class="text-[10px] font-bold text-primary tracking-wider uppercase">
+                                                {{ $qData['total_pending'] }} {{ __('Perlawanan Berbaki') }} &middot; {{ $qData['completed_count'] }} {{ __('Selesai') }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    @if($isSky)
+                                        <span class="text-[10px] font-bold bg-violet-100 text-violet-700 px-2.5 py-1 rounded-lg border border-violet-200">
+                                            🔄 {{ __('Selang-Seli (U12 ➔ U15)') }}
+                                        </span>
+                                    @endif
+                                </div>
+
+                                <div class="p-5 space-y-4">
+                                    {{-- 1. SEDANG BERLANGSUNG (LIVE NOW) --}}
+                                    <div>
+                                        <div class="flex items-center gap-2 mb-2">
+                                            <span class="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+                                            <span class="text-[10px] font-black text-red-600 uppercase tracking-widest">{{ __('SEDANG BERLANGSUNG (LIVE)') }}</span>
+                                        </div>
+                                        @if($active)
+                                            @php
+                                                $qSearch = strtolower(trim($this->queueSearch));
+                                                $isHighlighted = $qSearch && (
+                                                    str_contains(strtolower($active->homeTeam->team_name ?? ''), $qSearch) || 
+                                                    str_contains(strtolower($active->awayTeam->team_name ?? ''), $qSearch)
+                                                );
+                                            @endphp
+                                            <div class="p-4 rounded-2xl border-2 {{ $isHighlighted ? 'border-primary ring-4 ring-primary/20 bg-primary/5' : 'border-red-200 bg-red-50/40' }} relative overflow-hidden">
+                                                <div class="flex justify-between items-center text-[10px] font-bold text-base-content/60 mb-2">
+                                                    <span>{{ $active->category->name ?? '' }} &middot; {{ $active->round_name }}</span>
+                                                    <span class="bg-red-500 text-white font-black px-2 py-0.5 rounded uppercase text-[9px] animate-pulse">LIVE</span>
+                                                </div>
+                                                <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                                                    <div class="text-right">
+                                                        <h4 class="font-extrabold text-sm text-base-content truncate">{{ $active->homeTeam->team_name ?? 'BYE' }}</h4>
+                                                        <p class="text-[10px] text-base-content/50 truncate">{{ $active->homeTeam->school_name ?? '' }}</p>
+                                                    </div>
+                                                    <div class="bg-white border border-base-200 px-3 py-1 rounded-xl shadow-xs text-center shrink-0">
+                                                        <span class="text-base font-black text-primary">{{ $active->home_score ?? 0 }}</span>
+                                                        <span class="text-base-content/30 font-bold mx-1">-</span>
+                                                        <span class="text-base font-black text-primary">{{ $active->away_score ?? 0 }}</span>
+                                                    </div>
+                                                    <div class="text-left">
+                                                        <h4 class="font-extrabold text-sm text-base-content truncate">{{ $active->awayTeam->team_name ?? 'BYE' }}</h4>
+                                                        <p class="text-[10px] text-base-content/50 truncate">{{ $active->awayTeam->school_name ?? '' }}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @else
+                                            <div class="p-3 bg-base-100 rounded-2xl border border-dashed border-base-200 text-center">
+                                                <p class="text-xs font-bold text-base-content/40">{{ __('Tiada perlawanan sedang berlangsung.') }}</p>
+                                            </div>
+                                        @endif
+                                    </div>
+
+                                    {{-- 2. GILIRAN SETERUSNYA (NEXT UP - TURN #1) --}}
+                                    @php $nextMatch = $upcoming->first(); @endphp
+                                    <div>
+                                        <div class="flex items-center justify-between mb-2">
+                                            <div class="flex items-center gap-1.5">
+                                                <span class="text-amber-500 text-xs">🔥</span>
+                                                <span class="text-[10px] font-black text-amber-700 uppercase tracking-widest">{{ __('GILIRAN SETERUSNYA (TURN #1)') }}</span>
+                                            </div>
+                                            <span class="text-[9px] font-black bg-amber-100 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-full uppercase">
+                                                ⚠️ {{ __('Sedia di tepi padang') }}
+                                            </span>
+                                        </div>
+                                        @if($nextMatch)
+                                            @php
+                                                $qSearch = strtolower(trim($this->queueSearch));
+                                                $isNextHigh = $qSearch && (
+                                                    str_contains(strtolower($nextMatch->homeTeam->team_name ?? ''), $qSearch) || 
+                                                    str_contains(strtolower($nextMatch->awayTeam->team_name ?? ''), $qSearch)
+                                                );
+                                            @endphp
+                                            <div class="p-4 rounded-2xl border-2 {{ $isNextHigh ? 'border-primary ring-4 ring-primary/20 bg-primary/5' : 'border-amber-200 bg-amber-50/50' }}">
+                                                <div class="flex justify-between items-center text-[10px] font-bold text-amber-900/70 mb-2">
+                                                    <span>{{ $nextMatch->category->name ?? '' }} &middot; {{ $nextMatch->round_name }}</span>
+                                                    @if($nextMatch->scheduled_time)
+                                                        <span class="bg-white/80 px-2 py-0.5 rounded font-black text-amber-800">{{ $nextMatch->scheduled_time->format('h:i A') }}</span>
+                                                    @endif
+                                                </div>
+                                                <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                                                    <div class="text-right">
+                                                        <h4 class="font-extrabold text-sm text-base-content truncate">{{ $nextMatch->homeTeam->team_name ?? 'BYE' }}</h4>
+                                                        <p class="text-[10px] text-base-content/50 truncate">{{ $nextMatch->homeTeam->school_name ?? '' }}</p>
+                                                    </div>
+                                                    <span class="text-xs font-black text-amber-700 bg-white border border-amber-200 px-2.5 py-1 rounded-xl shrink-0">VS</span>
+                                                    <div class="text-left">
+                                                        <h4 class="font-extrabold text-sm text-base-content truncate">{{ $nextMatch->awayTeam->team_name ?? 'BYE' }}</h4>
+                                                        <p class="text-[10px] text-base-content/50 truncate">{{ $nextMatch->awayTeam->school_name ?? '' }}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @else
+                                            <div class="p-3 bg-base-100 rounded-2xl border border-dashed border-base-200 text-center">
+                                                <p class="text-xs font-bold text-base-content/40">{{ __('Tiada perlawanan seterusnya dijadualkan.') }}</p>
+                                            </div>
+                                        @endif
+                                    </div>
+
+                                    {{-- 3. SENARAI GILIRAN MENUNGGU (UPCOMING QUEUE - TURN #2, #3, ...) --}}
+                                    @php $remainingQueue = $upcoming->slice(1); @endphp
+                                    @if($remainingQueue->isNotEmpty())
+                                        <div>
+                                            <div class="flex items-center gap-1.5 mb-2">
+                                                <span class="text-blue-500 text-xs">⏳</span>
+                                                <span class="text-[10px] font-black text-base-content/50 uppercase tracking-widest">{{ __('SENARAI GILIRAN MENUNGGU') }} ({{ $remainingQueue->count() }})</span>
+                                            </div>
+                                            <div class="divide-y divide-base-100 bg-base-50 rounded-2xl border border-base-200 overflow-hidden">
+                                                @foreach($remainingQueue as $queueIdx => $qMatch)
+                                                    @php
+                                                        $turnNumber = $queueIdx + 2;
+                                                        $qSearch = strtolower(trim($this->queueSearch));
+                                                        $isMatchHigh = $qSearch && (
+                                                            str_contains(strtolower($qMatch->homeTeam->team_name ?? ''), $qSearch) || 
+                                                            str_contains(strtolower($qMatch->awayTeam->team_name ?? ''), $qSearch)
+                                                        );
+                                                    @endphp
+                                                    <div class="p-3 flex items-center justify-between gap-3 {{ $isMatchHigh ? 'bg-primary/10 font-bold ring-2 ring-primary/30 rounded-xl' : 'hover:bg-base-100' }} transition-colors">
+                                                        <div class="flex items-center gap-2 min-w-0">
+                                                            <span class="w-6 h-6 rounded-lg bg-white border border-base-200 text-xs font-black text-primary flex items-center justify-center shrink-0">
+                                                                {{ $turnNumber }}
+                                                            </span>
+                                                            <div class="min-w-0">
+                                                                <p class="text-xs font-bold text-base-content truncate">
+                                                                    {{ $qMatch->homeTeam->team_name ?? 'BYE' }} <span class="text-base-content/40 font-normal">vs</span> {{ $qMatch->awayTeam->team_name ?? 'BYE' }}
+                                                                </p>
+                                                                <p class="text-[10px] text-base-content/50 truncate">
+                                                                    {{ $qMatch->category->name ?? '' }} &middot; {{ $qMatch->round_name }}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <div class="shrink-0 text-right">
+                                                            @if($qMatch->scheduled_time)
+                                                                <span class="text-[10px] font-bold text-base-content/60 bg-white px-2 py-0.5 rounded border border-base-200 block">
+                                                                    {{ $qMatch->scheduled_time->format('h:i A') }}
+                                                                </span>
+                                                            @endif
+                                                            <span class="text-[9px] font-semibold text-base-content/40">
+                                                                {{ __('Lagi :count perlawanan', ['count' => $turnNumber - 1]) }}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+            </div>
+        @endif
+
+        {{-- ============================================== --}}
+        {{-- TAB 3: KEDUDUKAN LIGA (STANDINGS)              --}}
         {{-- ============================================== --}}
         @if($activeTab === 'standings')
             <div class="animate-fade-in space-y-6">
@@ -456,7 +1139,7 @@ new class extends Component {
         @endif
 
         {{-- ============================================== --}}
-        {{-- TAB 3: KALAH MATI (KNOCKOUT)                   --}}
+        {{-- TAB 4: KALAH MATI (KNOCKOUT)                   --}}
         {{-- ============================================== --}}
         @if($activeTab === 'knockout')
             <div class="animate-fade-in space-y-6">
@@ -531,19 +1214,25 @@ new class extends Component {
     <!-- Bottom Mobile Navigation Bar -->
     <div class="fixed bottom-0 w-full bg-white border-t border-base-200 pb-safe z-50 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.1)]">
         <div class="flex justify-around items-center max-w-3xl mx-auto h-16">
-            <button wire:click="setTab('search')" class="flex-1 flex flex-col items-center justify-center gap-1 h-full transition-colors {{ $activeTab === 'search' ? 'text-primary' : 'text-base-content/40 hover:text-base-content' }}">
-                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                <span class="text-[10px] font-bold tracking-wider uppercase">{{ __('Jadual') }}</span>
+            <button wire:click="setTab('search')" class="flex-1 flex flex-col items-center justify-center gap-1 h-full transition-colors {{ $activeTab === 'search' ? 'text-primary font-bold' : 'text-base-content/40 hover:text-base-content' }}">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                <span class="text-[10px] tracking-wider uppercase">{{ __('Semakan') }}</span>
             </button>
             
-            <button wire:click="setTab('standings')" class="flex-1 flex flex-col items-center justify-center gap-1 h-full transition-colors {{ $activeTab === 'standings' ? 'text-primary' : 'text-base-content/40 hover:text-base-content' }}">
-                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
-                <span class="text-[10px] font-bold tracking-wider uppercase">{{ __('Kedudukan') }}</span>
+            <button wire:click="setTab('giliran')" class="flex-1 flex flex-col items-center justify-center gap-1 h-full transition-colors {{ $activeTab === 'giliran' ? 'text-primary font-bold' : 'text-base-content/40 hover:text-base-content' }} relative">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <span class="text-[10px] tracking-wider uppercase">{{ __('Giliran') }}</span>
+                <span class="absolute top-2 right-1/4 w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
             </button>
 
-            <button wire:click="setTab('knockout')" class="flex-1 flex flex-col items-center justify-center gap-1 h-full transition-colors {{ $activeTab === 'knockout' ? 'text-primary' : 'text-base-content/40 hover:text-base-content' }}">
-                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
-                <span class="text-[10px] font-bold tracking-wider uppercase">{{ __('Kalah Mati') }}</span>
+            <button wire:click="setTab('standings')" class="flex-1 flex flex-col items-center justify-center gap-1 h-full transition-colors {{ $activeTab === 'standings' ? 'text-primary font-bold' : 'text-base-content/40 hover:text-base-content' }}">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                <span class="text-[10px] tracking-wider uppercase">{{ __('Kedudukan') }}</span>
+            </button>
+
+            <button wire:click="setTab('knockout')" class="flex-1 flex flex-col items-center justify-center gap-1 h-full transition-colors {{ $activeTab === 'knockout' ? 'text-primary font-bold' : 'text-base-content/40 hover:text-base-content' }}">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
+                <span class="text-[10px] tracking-wider uppercase">{{ __('Kalah Mati') }}</span>
             </button>
         </div>
     </div>
