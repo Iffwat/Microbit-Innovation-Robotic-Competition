@@ -89,7 +89,7 @@ new class extends Component {
         $this->selectedCategory = null;
     }
 
-    private function createBracketFor13Groups($categoryId, $stage, $standings, $groupNames, bool $isCup = false)
+    public function createBracketFor13Groups($categoryId, $stage, $standings, $groupNames, bool $isCup = false)
     {
         if (!$isCup) {
             // Trophy: All 13 Champions (1st place) + All 13 Runners-up (2nd place) = 26 teams
@@ -109,39 +109,33 @@ new class extends Component {
             }
         }
 
-        // Rank Tier 1 teams: Points DESC, Goal Difference DESC, Goals For DESC
-        uasort($tier1, function($a, $b) {
+        // Rank function:
+        // 1. Points DESC
+        // 2. Goal Difference DESC
+        // 3. Highest Goals For DESC ("the highest goal from them are going to bye")
+        // 4. Fewest Goals Against ASC
+        // 5. Wins DESC
+        $rankFunction = function($a, $b) {
             if ($b->points !== $a->points) return $b->points <=> $a->points;
             if ($b->goal_difference !== $a->goal_difference) return $b->goal_difference <=> $a->goal_difference;
-            return $b->goals_for <=> $a->goals_for;
-        });
+            if ($b->goals_for !== $a->goals_for) return $b->goals_for <=> $a->goals_for;
+            if ($a->goals_against !== $b->goals_against) return $a->goals_against <=> $b->goals_against;
+            return $b->won <=> $a->won;
+        };
 
-        $rankedTier1 = array_values($tier1);
-        $top6Seed = array_slice($rankedTier1, 0, 6);         // 6 teams get BYE straight to P16
-        $remainingTier1 = array_slice($rankedTier1, 6);       // 7 teams play in P32
-        $tier2List = array_values($tier2);                   // 13 teams play in P32
+        uasort($tier1, $rankFunction);
+        uasort($tier2, $rankFunction);
 
-        // Unseeded pool for P32 real matches: 7 Tier1 + 13 Tier2 = 20 teams (10 matches)
-        $unseededPool = array_merge($remainingTier1, $tier2List);
+        $rankedTier1 = array_values($tier1); // Seeds 1 to 13
+        $rankedTier2 = array_values($tier2); // Seeds 14 to 26
 
-        // Prevent same-group and same-school matchups in the 10 real matches
-        for ($i = 0; $i < 10; $i++) {
-            $oppIdx = count($unseededPool) - 1 - $i;
-            $hTeamId = $unseededPool[$i]->team_id ?? null;
-            $aTeamId = $unseededPool[$oppIdx]->team_id ?? null;
-            $hTeam = $hTeamId ? \App\Models\Team::find($hTeamId) : null;
-            $aTeam = $aTeamId ? \App\Models\Team::find($aTeamId) : null;
-
-            $sameGroup = (isset($unseededPool[$i]->group_letter, $unseededPool[$oppIdx]->group_letter) &&
-                          $unseededPool[$i]->group_letter === $unseededPool[$oppIdx]->group_letter);
-            $sameSchool = ($hTeam && $aTeam && !empty($hTeam->school_name) &&
-                           strcasecmp(trim($hTeam->school_name), trim($aTeam->school_name)) === 0);
-
-            if (($sameGroup || $sameSchool) && $oppIdx > $i + 1) {
-                $temp = $unseededPool[$oppIdx];
-                $unseededPool[$oppIdx] = $unseededPool[$oppIdx - 1];
-                $unseededPool[$oppIdx - 1] = $temp;
-            }
+        // Build 1-based seed map: seeds[1..26] => team_id
+        $seeds = [];
+        for ($i = 0; $i < 13; $i++) {
+            $seeds[$i + 1] = isset($rankedTier1[$i]) ? $rankedTier1[$i]->team_id : null;
+        }
+        for ($i = 0; $i < 13; $i++) {
+            $seeds[$i + 14] = isset($rankedTier2[$i]) ? $rankedTier2[$i]->team_id : null;
         }
 
         // 1. Generate Placeholder Downstream Rounds FIRST so advanceKnockoutWinner() can find them!
@@ -212,21 +206,50 @@ new class extends Component {
         }
 
         // 2. Generate Pusingan ke-32 (16 matches total: 6 BYEs + 10 Real matches)
-        // Feeder structure into P16:
-        // P32 Matches 1 & 2   -> P16 Match 1 (Home & Away)
-        // P32 Matches 3 & 4   -> P16 Match 2 (Home & Away)
-        // P32 Matches 5 & 6   -> P16 Match 3 (Home & Away)
-        // P32 Matches 7 & 8   -> P16 Match 4 (Home & Away)
-        // P32 Matches 9 & 10  -> P16 Match 5 (Home & Away)
-        // P32 Matches 11 & 12 -> P16 Match 6 (Home & Away)
-        // P32 Matches 13 & 14 -> P16 Match 7 (Home & Away)
-        // P32 Matches 15 & 16 -> P16 Match 8 (Home & Away)
-        $byePositions = [1, 3, 5, 9, 11, 13];
-        $realPositions = [2, 4, 6, 7, 8, 10, 12, 14, 15, 16];
+        // EXACT CONFIGURATION AS PER OFFICIAL 26-TEAM BRACKET SPECIFICATION:
+        // Top 6 Seeds (highest goal / stats) get BYEs straight to P16:
+        // P32 Pos 1  -> Seed 1 (BYE)  -> Feeds P16 Match 1 Home (Match 11 in diagram)
+        // P32 Pos 5  -> Seed 4 (BYE)  -> Feeds P16 Match 3 Home (Match 13 in diagram)
+        // P32 Pos 7  -> Seed 5 (BYE)  -> Feeds P16 Match 4 Home (Match 14 in diagram)
+        // P32 Pos 9  -> Seed 2 (BYE)  -> Feeds P16 Match 5 Home (Match 15 in diagram)
+        // P32 Pos 13 -> Seed 3 (BYE)  -> Feeds P16 Match 7 Home (Match 17 in diagram)
+        // P32 Pos 15 -> Seed 6 (BYE)  -> Feeds P16 Match 8 Home (Match 18 in diagram)
+        $byeSlots = [
+            1  => 1,
+            5  => 4,
+            7  => 5,
+            9  => 2,
+            13 => 3,
+            15 => 6,
+        ];
+
+        // 10 Real matches in P32:
+        // P32 Pos 2  -> Seed 16 vs Seed 17 -> Winner plays Seed 1 in P16 Match 1
+        // P32 Pos 3  -> Seed 8  vs Seed 25 -> Feeds P16 Match 2 Home
+        // P32 Pos 4  -> Seed 9  vs Seed 24 -> Feeds P16 Match 2 Away
+        // P32 Pos 6  -> Seed 13 vs Seed 20 -> Winner plays Seed 4 in P16 Match 3
+        // P32 Pos 8  -> Seed 12 vs Seed 21 -> Winner plays Seed 5 in P16 Match 4
+        // P32 Pos 10 -> Seed 15 vs Seed 18 -> Winner plays Seed 2 in P16 Match 5
+        // P32 Pos 11 -> Seed 7  vs Seed 26 -> Feeds P16 Match 6 Home
+        // P32 Pos 12 -> Seed 10 vs Seed 23 -> Feeds P16 Match 6 Away
+        // P32 Pos 14 -> Seed 14 vs Seed 19 -> Winner plays Seed 3 in P16 Match 7
+        // P32 Pos 16 -> Seed 11 vs Seed 22 -> Winner plays Seed 6 in P16 Match 8
+        $realMatchSlots = [
+            2  => [16, 17],
+            3  => [8, 25],
+            4  => [9, 24],
+            6  => [13, 20],
+            8  => [12, 21],
+            10 => [15, 18],
+            11 => [7, 26],
+            12 => [10, 23],
+            14 => [14, 19],
+            16 => [11, 22],
+        ];
 
         // Create the 6 BYE matches and auto-advance the seeds to P16!
-        foreach ($byePositions as $k => $pos) {
-            $seedTeamId = $top6Seed[$k]->team_id ?? null;
+        foreach ($byeSlots as $pos => $seedNum) {
+            $seedTeamId = $seeds[$seedNum] ?? null;
             $byeMatch = TournamentMatch::create([
                 'category_id' => $categoryId,
                 'stage' => $stage,
@@ -242,10 +265,10 @@ new class extends Component {
         }
 
         // Create the 10 Real matches (20 teams)
-        foreach ($realPositions as $idx => $pos) {
-            $homeId = $unseededPool[$idx]->team_id ?? null;
-            $oppIdx = count($unseededPool) - 1 - $idx;
-            $awayId = isset($unseededPool[$oppIdx]) ? $unseededPool[$oppIdx]->team_id : null;
+        $fieldIdx = 0;
+        foreach ($realMatchSlots as $pos => $pair) {
+            $homeId = $seeds[$pair[0]] ?? null;
+            $awayId = $seeds[$pair[1]] ?? null;
 
             TournamentMatch::create([
                 'category_id' => $categoryId,
@@ -255,8 +278,9 @@ new class extends Component {
                 'home_team_id' => $homeId,
                 'away_team_id' => $awayId,
                 'status' => 'scheduled',
-                'field_number' => ($idx % 8) + 1,
+                'field_number' => ($fieldIdx % 8) + 1,
             ]);
+            $fieldIdx++;
         }
     }
 
