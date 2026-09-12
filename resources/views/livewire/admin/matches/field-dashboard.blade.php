@@ -336,15 +336,55 @@ new class extends Component
     }
 
     public function incrementScore($team) {
-        if ($team === 'home') $this->soccerHomeScore++;
-        if ($team === 'away') $this->soccerAwayScore++;
+        if ($team === 'home') {
+            $this->soccerHomeScore = (is_numeric($this->soccerHomeScore) ? (int)$this->soccerHomeScore : 0) + 1;
+        }
+        if ($team === 'away') {
+            $this->soccerAwayScore = (is_numeric($this->soccerAwayScore) ? (int)$this->soccerAwayScore : 0) + 1;
+        }
         $this->syncLiveSoccerScore();
     }
 
     public function decrementScore($team) {
-        if ($team === 'home' && $this->soccerHomeScore > 0) $this->soccerHomeScore--;
-        if ($team === 'away' && $this->soccerAwayScore > 0) $this->soccerAwayScore--;
+        if ($team === 'home') {
+            $curr = is_numeric($this->soccerHomeScore) ? (int)$this->soccerHomeScore : 0;
+            if ($curr > 0) $this->soccerHomeScore = $curr - 1;
+        }
+        if ($team === 'away') {
+            $curr = is_numeric($this->soccerAwayScore) ? (int)$this->soccerAwayScore : 0;
+            if ($curr > 0) $this->soccerAwayScore = $curr - 1;
+        }
         $this->syncLiveSoccerScore();
+    }
+
+    public function updatedSoccerHomeScore($value)
+    {
+        if (is_numeric($value)) {
+            $this->soccerHomeScore = max(0, (int)$value);
+            $this->syncLiveSoccerScore();
+        }
+    }
+
+    public function updatedSoccerAwayScore($value)
+    {
+        if (is_numeric($value)) {
+            $this->soccerAwayScore = max(0, (int)$value);
+            $this->syncLiveSoccerScore();
+        }
+    }
+
+    public function updatedObsPenalties1($value)
+    {
+        if (is_numeric($value)) {
+            $this->obsPenalties1 = max(0, (int)$value);
+        }
+    }
+
+    public function updatedObsPenalties2($value)
+    {
+        if (is_numeric($value)) {
+            $this->obsPenalties2 = max(0, (int)$value);
+        }
     }
 
     private function syncLiveSoccerScore() {
@@ -398,6 +438,8 @@ new class extends Component
             }
             $match->away_score = null;
         } else {
+            $this->soccerHomeScore = is_numeric($this->soccerHomeScore) ? max(0, (int)$this->soccerHomeScore) : 0;
+            $this->soccerAwayScore = is_numeric($this->soccerAwayScore) ? max(0, (int)$this->soccerAwayScore) : 0;
             if ($this->soccerHomeScore === $this->soccerAwayScore) {
                 $this->js("alert('Perhatian: Skor seri (" . $this->soccerHomeScore . " - " . $this->soccerAwayScore . ") tidak dibenarkan! Semua perlawanan mesti ada pemenang. Sila tentukan pemenang penalti / sudden death di padang.');");
                 return;
@@ -1088,9 +1130,9 @@ new class extends Component
                                         <div class="pt-4 border-t border-base-200">
                                             <label class="block text-xs font-bold text-base-content/50 uppercase tracking-widest mb-2">{{ __('Penalti (+1 Saat)') }}</label>
                                             <div class="flex items-center justify-between bg-white rounded-xl border-2 border-base-300 p-2">
-                                                <button wire:click="decrementPenalty(1)" class="w-12 h-12 flex items-center justify-center bg-red-100 text-red-600 hover:bg-red-200 rounded-lg font-bold text-2xl transition-colors">-</button>
-                                                <span class="text-3xl font-black text-base-content">{{ $obsPenalties1 }}</span>
-                                                <button wire:click="incrementPenalty(1)" class="w-12 h-12 flex items-center justify-center bg-emerald-100 text-emerald-600 hover:bg-emerald-200 rounded-lg font-bold text-2xl transition-colors">+</button>
+                                                <button type="button" wire:click="decrementPenalty(1)" class="w-12 h-12 flex items-center justify-center bg-red-100 text-red-600 hover:bg-red-200 active:scale-95 rounded-lg font-bold text-2xl transition-all select-none">-</button>
+                                                <input type="number" min="0" wire:model.live.debounce.300ms="obsPenalties1" onfocus="this.select()" class="w-20 text-center text-3xl font-black text-base-content bg-transparent border-0 focus:outline-none focus:ring-0 p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                                                <button type="button" wire:click="incrementPenalty(1)" class="w-12 h-12 flex items-center justify-center bg-emerald-100 text-emerald-600 hover:bg-emerald-200 active:scale-95 rounded-lg font-bold text-2xl transition-all select-none">+</button>
                                             </div>
                                         </div>
                                     </div>
@@ -1110,9 +1152,9 @@ new class extends Component
                                         <div class="pt-4 border-t border-base-200">
                                             <label class="block text-xs font-bold text-base-content/50 uppercase tracking-widest mb-2">{{ __('Penalti (+1 Saat)') }}</label>
                                             <div class="flex items-center justify-between bg-white rounded-xl border-2 border-base-300 p-2">
-                                                <button wire:click="decrementPenalty(2)" class="w-12 h-12 flex items-center justify-center bg-red-100 text-red-600 hover:bg-red-200 rounded-lg font-bold text-2xl transition-colors">-</button>
-                                                <span class="text-3xl font-black text-base-content">{{ $obsPenalties2 }}</span>
-                                                <button wire:click="incrementPenalty(2)" class="w-12 h-12 flex items-center justify-center bg-emerald-100 text-emerald-600 hover:bg-emerald-200 rounded-lg font-bold text-2xl transition-colors">+</button>
+                                                <button type="button" wire:click="decrementPenalty(2)" class="w-12 h-12 flex items-center justify-center bg-red-100 text-red-600 hover:bg-red-200 active:scale-95 rounded-lg font-bold text-2xl transition-all select-none">-</button>
+                                                <input type="number" min="0" wire:model.live.debounce.300ms="obsPenalties2" onfocus="this.select()" class="w-20 text-center text-3xl font-black text-base-content bg-transparent border-0 focus:outline-none focus:ring-0 p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                                                <button type="button" wire:click="incrementPenalty(2)" class="w-12 h-12 flex items-center justify-center bg-emerald-100 text-emerald-600 hover:bg-emerald-200 active:scale-95 rounded-lg font-bold text-2xl transition-all select-none">+</button>
                                             </div>
                                         </div>
                                     </div>
@@ -1163,22 +1205,26 @@ new class extends Component
                                 <div class="grid grid-cols-2 gap-4">
                                     {{-- Home --}}
                                     <div class="bg-white border-2 border-base-200 rounded-2xl p-4 text-center shadow-sm">
-                                        <h4 class="font-extrabold text-base-content leading-tight h-10">{{ $sm->homeTeam->team_name ?? 'BYE' }}</h4>
-                                        <div class="flex items-center justify-between mt-4">
-                                            <button wire:click="decrementScore('home')" class="w-10 h-10 bg-base-200 hover:bg-base-300 rounded-xl font-bold text-xl flex items-center justify-center">-</button>
-                                            <span class="text-4xl font-black text-primary">{{ $soccerHomeScore }}</span>
-                                            <button wire:click="incrementScore('home')" class="w-10 h-10 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-xl font-bold text-xl flex items-center justify-center">+</button>
+                                        <h4 class="font-extrabold text-base-content leading-tight h-10 flex items-center justify-center">{{ $sm->homeTeam->team_name ?? 'BYE' }}</h4>
+                                        <div class="flex items-center justify-center gap-2 mt-4">
+                                            <button type="button" wire:click="decrementScore('home')" class="w-10 h-10 shrink-0 bg-base-200 hover:bg-base-300 active:scale-95 rounded-xl font-bold text-xl flex items-center justify-center transition-all select-none cursor-pointer">-</button>
+                                            <input type="number" min="0" wire:model.live.debounce.300ms="soccerHomeScore" onfocus="this.select()"
+                                                   class="w-20 sm:w-24 text-center text-3xl sm:text-4xl font-black text-primary bg-base-50 border-2 border-base-300 rounded-xl py-1 focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none transition-all shadow-inner" />
+                                            <button type="button" wire:click="incrementScore('home')" class="w-10 h-10 shrink-0 bg-primary/10 text-primary hover:bg-primary hover:text-white active:scale-95 rounded-xl font-bold text-xl flex items-center justify-center transition-all select-none cursor-pointer">+</button>
                                         </div>
+                                        <p class="text-[10px] text-base-content/40 font-semibold mt-2">{{ __('Boleh taip terus atau klik +/-') }}</p>
                                     </div>
                                     
                                     {{-- Away --}}
                                     <div class="bg-white border-2 border-base-200 rounded-2xl p-4 text-center shadow-sm">
-                                        <h4 class="font-extrabold text-base-content leading-tight h-10">{{ $sm->awayTeam->team_name ?? 'BYE' }}</h4>
-                                        <div class="flex items-center justify-between mt-4">
-                                            <button wire:click="decrementScore('away')" class="w-10 h-10 bg-base-200 hover:bg-base-300 rounded-xl font-bold text-xl flex items-center justify-center">-</button>
-                                            <span class="text-4xl font-black text-primary">{{ $soccerAwayScore }}</span>
-                                            <button wire:click="incrementScore('away')" class="w-10 h-10 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-xl font-bold text-xl flex items-center justify-center">+</button>
+                                        <h4 class="font-extrabold text-base-content leading-tight h-10 flex items-center justify-center">{{ $sm->awayTeam->team_name ?? 'BYE' }}</h4>
+                                        <div class="flex items-center justify-center gap-2 mt-4">
+                                            <button type="button" wire:click="decrementScore('away')" class="w-10 h-10 shrink-0 bg-base-200 hover:bg-base-300 active:scale-95 rounded-xl font-bold text-xl flex items-center justify-center transition-all select-none cursor-pointer">-</button>
+                                            <input type="number" min="0" wire:model.live.debounce.300ms="soccerAwayScore" onfocus="this.select()"
+                                                   class="w-20 sm:w-24 text-center text-3xl sm:text-4xl font-black text-primary bg-base-50 border-2 border-base-300 rounded-xl py-1 focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none transition-all shadow-inner" />
+                                            <button type="button" wire:click="incrementScore('away')" class="w-10 h-10 shrink-0 bg-primary/10 text-primary hover:bg-primary hover:text-white active:scale-95 rounded-xl font-bold text-xl flex items-center justify-center transition-all select-none cursor-pointer">+</button>
                                         </div>
+                                        <p class="text-[10px] text-base-content/40 font-semibold mt-2">{{ __('Boleh taip terus atau klik +/-') }}</p>
                                     </div>
                                 </div>
                             @endif
