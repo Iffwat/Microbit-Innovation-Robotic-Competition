@@ -376,7 +376,7 @@ new class extends Component {
                                             @endif
                                         @endif
                                     </div>
-                                    <div class="font-black text-lg shrink-0 ml-2 {{ $match->away_score !== null ? 'text-primary' : 'text-base-content/20') }}">
+                                    <div class="font-black text-lg shrink-0 ml-2 {{ $match->away_score !== null ? 'text-primary' : 'text-base-content/20' }}">
                                         {{ $match->status === 'bye' ? '-' : ($match->away_score ?? '-') }}
                                     </div>
                                 </div>
