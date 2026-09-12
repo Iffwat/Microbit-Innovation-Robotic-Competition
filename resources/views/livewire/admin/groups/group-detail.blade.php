@@ -18,6 +18,12 @@ new class extends Component
     public bool $showAddLateTeamModal = false;
     public ?int $selectedLateTeamId = null;
     public ?int $selectedTargetGroupId = null;
+
+    // Create Group Modal State
+    public bool $showCreateGroupModal = false;
+    public string $newGroupName = '';
+    public string $newGroupLetter = '';
+    public ?string $newGroupField = null;
     
     public function mount($gameType, $categorySlug)
     {
@@ -29,7 +35,7 @@ new class extends Component
     #[Computed]
     public function groups()
     {
-        return Group::with(['groupTeams.team'])
+        return Group::with(['groupTeams.team', 'matches'])
             ->where('category_id', $this->category->id)
             ->where('game_type', $this->gameType)
             ->orderBy('group_name')
@@ -56,6 +62,162 @@ new class extends Component
         $group = Group::where('id', $groupId)->where('category_id', $this->category->id)->firstOrFail();
         $group->field_number = empty($fieldNumber) ? null : $fieldNumber;
         $group->save();
+    }
+
+    public function openCreateGroupModal(): void
+    {
+        $existingLetters = $this->groups->pluck('group_letter')->map(fn($l) => strtoupper(trim($l)))->toArray();
+        if ($this->gameType === 'obstacle') {
+            $nextNum = $this->groups->count() + 1;
+            $this->newGroupLetter = (string)$nextNum;
+            $this->newGroupName = 'Course ' . $nextNum;
+            $this->newGroupField = 'Course ' . $nextNum;
+        } else {
+            $nextLetter = 'A';
+            foreach (range('A', 'Z') as $letter) {
+                if (!in_array($letter, $existingLetters)) {
+                    $nextLetter = $letter;
+                    break;
+                }
+            }
+            $this->newGroupLetter = $nextLetter;
+            $this->newGroupName = 'Kumpulan ' . $nextLetter;
+            $this->newGroupField = $this->gameType === 'sky_soccer' ? 'Arena Sky Soccer' : null;
+        }
+        $this->showCreateGroupModal = true;
+    }
+
+    public function closeCreateGroupModal(): void
+    {
+        $this->showCreateGroupModal = false;
+        $this->newGroupName = '';
+        $this->newGroupLetter = '';
+        $this->newGroupField = null;
+    }
+
+    public function createGroup(): void
+    {
+        $this->validate([
+            'newGroupName' => 'required|string|max:50',
+            'newGroupLetter' => 'required|string|max:10',
+        ], [
+            'newGroupName.required' => 'Sila masukkan nama kumpulan.',
+            'newGroupLetter.required' => 'Sila masukkan huruf / kod kumpulan.',
+        ]);
+
+        Group::create([
+            'category_id' => $this->category->id,
+            'game_type'   => $this->gameType,
+            'group_name'  => trim($this->newGroupName),
+            'group_letter'=> strtoupper(trim($this->newGroupLetter)),
+            'field_number'=> $this->newGroupField ?: null,
+        ]);
+
+        $createdName = trim($this->newGroupName);
+        $this->closeCreateGroupModal();
+        $this->js("alert('Kumpulan {$createdName} berjaya dicipta! Anda kini boleh memasukkan pasukan ke dalamnya.');");
+    }
+
+    public function deleteSingleGroup(int $groupId): void
+    {
+        $group = Group::where('id', $groupId)->where('category_id', $this->category->id)->firstOrFail();
+
+        // Check if any match in this group is completed or in progress
+        $hasActiveMatches = TournamentMatch::where('group_id', $group->id)
+            ->whereIn('status', ['completed', 'in_progress'])
+            ->exists();
+
+        if ($hasActiveMatches) {
+            $this->js("alert('Kumpulan {$group->group_name} tidak boleh dipadam kerana sudah mempunyai perlawanan yang berjalan atau selesai!');");
+            return;
+        }
+
+        \Illuminate\Support\Facades\DB::beginTransaction();
+        try {
+            TournamentMatch::where('group_id', $group->id)->delete();
+            GroupTeam::where('group_id', $group->id)->delete();
+            $group->delete();
+            \Illuminate\Support\Facades\DB::commit();
+            $this->js("alert('Kumpulan {$group->group_name} berjaya dipadam.');");
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            $this->js("alert('Ralat: {$e->getMessage()}');");
+        }
+    }
+
+    public function generateSingleGroupFixtures(int $groupId): void
+    {
+        $group = Group::where('id', $groupId)->where('category_id', $this->category->id)->firstOrFail();
+        $teams = $group->groupTeams()->pluck('team_id')->toArray();
+        $teamCount = count($teams);
+
+        \Illuminate\Support\Facades\DB::beginTransaction();
+        try {
+            if ($this->gameType === 'obstacle') {
+                if ($teamCount < 1) {
+                    $this->js("alert('Sila masukkan sekurang-kurangnya 1 pasukan.');");
+                    return;
+                }
+                TournamentMatch::where('group_id', $group->id)->where('status', 'scheduled')->delete();
+                foreach ($teams as $index => $teamId) {
+                    TournamentMatch::create([
+                        'category_id' => $this->category->id,
+                        'group_id' => $group->id,
+                        'stage' => 'group',
+                        'round_name' => 'Larian ' . ($index + 1),
+                        'home_team_id' => $teamId,
+                        'away_team_id' => null,
+                        'field_number' => $group->field_number ?? 'Course 1',
+                        'status' => 'scheduled'
+                    ]);
+                }
+            } else {
+                if ($teamCount < 2) {
+                    $this->js("alert('Sila masukkan sekurang-kurangnya 2 pasukan ke dalam kumpulan ini untuk menjana perlawanan.');");
+                    return;
+                }
+                TournamentMatch::where('group_id', $group->id)->where('status', 'scheduled')->delete();
+
+                if ($teamCount % 2 != 0) {
+                    $teams[] = null;
+                    $teamCount++;
+                }
+
+                $rounds = $teamCount - 1;
+                $matchesPerRound = $teamCount / 2;
+
+                for ($round = 0; $round < $rounds; $round++) {
+                    for ($match = 0; $match < $matchesPerRound; $match++) {
+                        $home = $teams[$match];
+                        $away = $teams[$teamCount - 1 - $match];
+
+                        if ($home !== null && $away !== null) {
+                            TournamentMatch::create([
+                                'category_id' => $this->category->id,
+                                'group_id' => $group->id,
+                                'stage' => 'group',
+                                'round_name' => 'Kumpulan ' . $group->group_letter . ' - P' . ($round + 1),
+                                'home_team_id' => $home,
+                                'away_team_id' => $away,
+                                'field_number' => $group->field_number ?: ($this->gameType === 'sky_soccer' ? 'Arena Sky Soccer' : null),
+                                'status' => 'scheduled'
+                            ]);
+                        }
+                    }
+
+                    $temp = $teams[$teamCount - 1];
+                    for ($i = $teamCount - 1; $i > 1; $i--) {
+                        $teams[$i] = $teams[$i - 1];
+                    }
+                    $teams[1] = $temp;
+                }
+            }
+            \Illuminate\Support\Facades\DB::commit();
+            $this->js("alert('Jadual perlawanan bagi {$group->group_name} berjaya dijana!');");
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            $this->js("alert('Ralat: {$e->getMessage()}');");
+        }
     }
 
     public function openAddLateTeamModal(?int $groupId = null): void
@@ -149,6 +311,19 @@ new class extends Component
                                 'status' => 'scheduled'
                             ]);
                         }
+                    }
+                }
+            } else {
+                // If group had 0 matches, but now has >= 2 teams (or obstacle >= 1) and other groups have fixtures:
+                $hasCategoryFixtures = TournamentMatch::where('category_id', $this->category->id)
+                    ->whereHas('group', fn($q) => $q->where('game_type', $this->gameType))
+                    ->where('stage', 'group')
+                    ->exists();
+
+                if ($hasCategoryFixtures) {
+                    $teamCount = $group->groupTeams()->count();
+                    if (($this->gameType === 'obstacle' && $teamCount >= 1) || ($this->gameType !== 'obstacle' && $teamCount >= 2)) {
+                        $this->generateSingleGroupFixtures($group->id);
                     }
                 }
             }
@@ -394,6 +569,13 @@ new class extends Component
         </div>
         
         <div class="flex items-center gap-2 flex-wrap">
+            {{-- Create New Group Button --}}
+            <button wire:click="openCreateGroupModal" 
+                    class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold py-2.5 px-4 rounded-xl transition-colors flex items-center gap-2 shadow-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                <span>{{ __('Cipta Kumpulan Baharu') }}</span>
+            </button>
+
             {{-- Late Team Injection Button --}}
             @if($this->unassignedTeams->isNotEmpty() && $this->groups->isNotEmpty())
                 <button wire:click="openAddLateTeamModal()" 
@@ -442,8 +624,11 @@ new class extends Component
         <div class="bg-amber-50 border border-amber-200 rounded-2xl px-6 py-8 text-center text-amber-800">
             <svg class="w-12 h-12 mx-auto mb-3 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
             <h3 class="font-bold text-lg">{{ __('Tiada') }} @if($isObstacle) {{ __('Laluan') }} @else {{ __('Kumpulan') }} @endif</h3>
-            <p class="text-sm mt-1">{{ __('Belum dijana untuk kategori ini. Sila kembali ke muka hadapan dan klik "Jana".') }}</p>
-            <a href="{{ route('admin.groups.index') }}" class="inline-block mt-4 bg-amber-500 text-white px-5 py-2 rounded-xl text-sm font-bold hover:bg-amber-600 transition-colors">{{ __('Kembali') }}</a>
+            <p class="text-sm mt-1">{{ __('Belum dijana untuk kategori ini. Sila kembali ke muka hadapan dan klik "Jana", atau klik "Cipta Kumpulan Baharu" di atas.') }}</p>
+            <div class="flex justify-center gap-3 mt-4">
+                <a href="{{ route('admin.groups.index') }}" class="inline-block bg-amber-500 text-white px-5 py-2 rounded-xl text-sm font-bold hover:bg-amber-600 transition-colors">{{ __('Kembali') }}</a>
+                <button wire:click="openCreateGroupModal" class="inline-block bg-blue-600 text-white px-5 py-2 rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors">+ {{ __('Cipta Kumpulan') }}</button>
+            </div>
         </div>
     @else
         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -462,6 +647,12 @@ new class extends Component
                                         + {{ __('Tambah') }}
                                     </button>
                                 @endif
+                                <button wire:click="deleteSingleGroup({{ $group->id }})"
+                                        wire:confirm="{{ __('Anda pasti mahu memadam kumpulan') }} {{ $group->group_name }}? {{ __('Semua pasukan dalam kumpulan ini akan dipindahkan ke senarai belum diundi.') }}"
+                                        class="text-xs text-red-400 hover:text-red-600 p-1 rounded-lg hover:bg-red-50 transition-colors"
+                                        title="{{ __('Padam Kumpulan Ini') }}">
+                                    <svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                </button>
                             </div>
                         </div>
                         <div class="flex items-center gap-2 mt-1">
@@ -481,40 +672,115 @@ new class extends Component
                                 <span class="text-xs font-bold text-base-content bg-base-200 px-3 py-1 rounded-lg flex-1">{{ $group->group_name }} ({{ __('Laluan Khas') }})</span>
                             @endif
                         </div>
+                        @if($group->matches->isEmpty() && $group->groupTeams->count() >= ($isObstacle ? 1 : 2))
+                            <div class="mt-1 flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1 text-xs">
+                                <span class="text-amber-800 text-[11px] font-medium">⚠️ {{ __('Jadual belum dijana untuk kumpulan ini') }}</span>
+                                <button wire:click="generateSingleGroupFixtures({{ $group->id }})" 
+                                        class="text-[11px] font-bold text-primary hover:underline ml-2">
+                                    {{ __('Jana Sekarang') }} &rarr;
+                                </button>
+                            </div>
+                        @endif
                     </div>
                     
                     <div class="flex-1 p-0">
-                        <table class="w-full text-sm">
-                            <thead class="bg-base-100 border-b border-base-200">
-                                <tr>
-                                    <th class="text-left py-2 px-4 text-[10px] font-bold text-base-content/40 uppercase tracking-widest w-8">#</th>
-                                    <th class="text-left py-2 px-4 text-[10px] font-bold text-base-content/40 uppercase tracking-widest">{{ __('Pasukan') }}</th>
-                                    <th class="text-right py-2 px-4 text-[10px] font-bold text-base-content/40 uppercase tracking-widest w-12">{{ __('Tindakan') }}</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-base-100">
-                                @foreach($group->groupTeams as $idx => $gt)
-                                    <tr class="hover:bg-base-50 transition-colors group/row">
-                                        <td class="py-3 px-4 text-xs font-semibold text-base-content/30">{{ $idx + 1 }}</td>
-                                        <td class="py-3 px-4">
-                                            <p class="font-bold text-base-content">{{ $gt->team->team_name }}</p>
-                                            <p class="text-[10px] text-base-content/50 mt-0.5 leading-tight">🏫 {{ $gt->team->school_name }}</p>
-                                        </td>
-                                        <td class="py-3 px-4 text-right">
-                                            <button wire:click="removeTeamFromGroup({{ $group->id }}, {{ $gt->team->id }})"
-                                                    wire:confirm="{{ __('Anda pasti mahu mengeluarkan pasukan') }} {{ $gt->team->team_name }} {{ __('daripada') }} {{ $group->group_name }}?"
-                                                    class="opacity-0 group-hover/row:opacity-100 text-red-400 hover:text-red-600 p-1 rounded-lg hover:bg-red-50 transition-all"
-                                                    title="{{ __('Keluarkan Pasukan') }}">
-                                                <svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                                            </button>
-                                        </td>
+                        @if($group->groupTeams->isEmpty())
+                            <div class="p-6 text-center text-xs text-base-content/40 italic">
+                                {{ __('Tiada pasukan dalam kumpulan ini.') }}
+                                @if($this->unassignedTeams->isNotEmpty())
+                                    <br><button wire:click="openAddLateTeamModal({{ $group->id }})" class="text-primary font-bold hover:underline mt-1">+ {{ __('Masukkan Pasukan') }}</button>
+                                @endif
+                            </div>
+                        @else
+                            <table class="w-full text-sm">
+                                <thead class="bg-base-100 border-b border-base-200">
+                                    <tr>
+                                        <th class="text-left py-2 px-4 text-[10px] font-bold text-base-content/40 uppercase tracking-widest w-8">#</th>
+                                        <th class="text-left py-2 px-4 text-[10px] font-bold text-base-content/40 uppercase tracking-widest">{{ __('Pasukan') }}</th>
+                                        <th class="text-right py-2 px-4 text-[10px] font-bold text-base-content/40 uppercase tracking-widest w-12">{{ __('Tindakan') }}</th>
                                     </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody class="divide-y divide-base-100">
+                                    @foreach($group->groupTeams as $idx => $gt)
+                                        <tr class="hover:bg-base-50 transition-colors group/row">
+                                            <td class="py-3 px-4 text-xs font-semibold text-base-content/30">{{ $idx + 1 }}</td>
+                                            <td class="py-3 px-4">
+                                                <p class="font-bold text-base-content">{{ $gt->team->team_name }}</p>
+                                                <p class="text-[10px] text-base-content/50 mt-0.5 leading-tight">🏫 {{ $gt->team->school_name }}</p>
+                                            </td>
+                                            <td class="py-3 px-4 text-right">
+                                                <button wire:click="removeTeamFromGroup({{ $group->id }}, {{ $gt->team->id }})"
+                                                        wire:confirm="{{ __('Anda pasti mahu mengeluarkan pasukan') }} {{ $gt->team->team_name }} {{ __('daripada') }} {{ $group->group_name }}?"
+                                                        class="opacity-0 group-hover/row:opacity-100 text-red-400 hover:text-red-600 p-1 rounded-lg hover:bg-red-50 transition-all"
+                                                        title="{{ __('Keluarkan Pasukan') }}">
+                                                    <svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        @endif
                     </div>
                 </div>
             @endforeach
+        </div>
+    @endif
+
+    {{-- Create Group Modal --}}
+    @if($showCreateGroupModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+            <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-slide-up border border-base-200">
+                <div class="p-6 border-b border-base-200 bg-base-50 flex justify-between items-center">
+                    <div>
+                        <h3 class="font-black text-xl text-base-content">➕ {{ __('Cipta Kumpulan Baharu') }}</h3>
+                        <p class="text-xs text-base-content/50 mt-0.5">{{ __('Tambah kumpulan tambahan secara manual.') }}</p>
+                    </div>
+                    <button wire:click="closeCreateGroupModal" class="w-8 h-8 rounded-full bg-base-200 text-base-content/50 hover:text-base-content flex items-center justify-center font-bold">✕</button>
+                </div>
+
+                <div class="p-6 space-y-4">
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-base-content uppercase tracking-wider">{{ __('Nama Kumpulan:') }}</label>
+                        <input type="text" wire:model="newGroupName" placeholder="Contoh: Kumpulan C" class="input input-bordered w-full rounded-xl text-sm focus:border-primary" />
+                        @error('newGroupName') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-base-content uppercase tracking-wider">{{ __('Huruf / Kod Kumpulan:') }}</label>
+                        <input type="text" wire:model="newGroupLetter" placeholder="Contoh: C" class="input input-bordered w-full rounded-xl text-sm focus:border-primary uppercase" />
+                        @error('newGroupLetter') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-base-content uppercase tracking-wider">{{ __('Lokasi / Padang:') }}</label>
+                        @if($gameType === 'isobot')
+                            <select wire:model="newGroupField" class="select select-bordered w-full rounded-xl text-sm focus:border-primary">
+                                <option value="">- {{ __('Pilih Padang (Pilihan)') }} -</option>
+                                @for($i=1; $i<=15; $i++)
+                                    <option value="{{ $i }}">{{ __('Padang') }} {{ $i }}</option>
+                                @endfor
+                            </select>
+                        @elseif($gameType === 'sky_soccer')
+                            <input type="text" wire:model="newGroupField" readonly class="input input-bordered w-full rounded-xl text-sm bg-base-200" value="Arena Sky Soccer" />
+                        @else
+                            <input type="text" wire:model="newGroupField" placeholder="Contoh: Course 3" class="input input-bordered w-full rounded-xl text-sm focus:border-primary" />
+                        @endif
+                    </div>
+                </div>
+
+                <div class="p-4 border-t border-base-200 bg-base-50 flex justify-end gap-2">
+                    <button wire:click="closeCreateGroupModal" class="px-5 py-2.5 bg-base-200 hover:bg-base-300 text-base-content font-bold rounded-xl transition-colors text-sm">
+                        {{ __('Batal') }}
+                    </button>
+                    <button wire:click="createGroup" 
+                            wire:loading.attr="disabled"
+                            class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-colors text-sm flex items-center gap-2 shadow-sm">
+                        <span wire:loading.remove wire:target="createGroup">{{ __('Cipta Kumpulan') }}</span>
+                        <span wire:loading wire:target="createGroup">{{ __('Mencipta...') }}</span>
+                    </button>
+                </div>
+            </div>
         </div>
     @endif
 
