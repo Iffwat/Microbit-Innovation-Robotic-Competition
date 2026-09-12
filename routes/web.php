@@ -23,71 +23,88 @@ Route::get('/lang/{locale}', function ($locale) {
 
 // Cache Clear Route for Shared Hosting without Terminal
 Route::get('/clear-all-cache', function () {
+    $extraMsg = "";
+
     try {
         \Illuminate\Support\Facades\Artisan::call('view:clear');
         \Illuminate\Support\Facades\Artisan::call('cache:clear');
         \Illuminate\Support\Facades\Artisan::call('config:clear');
         \Illuminate\Support\Facades\Artisan::call('route:clear');
     } catch (\Throwable $e) {
-        // Continue if DB cache table not connected
+        // Continue
     }
     
     // 1. Remove old/corrupted unicode or zap files (⚡ or тЪб or ?) that block clean updates on Linux
-    $targetDirs = [
-        resource_path('views/components/admin/matches'),
-        resource_path('views/components/admin/groups'),
-        resource_path('views/components'),
-        resource_path('views/livewire/admin/matches'),
-        resource_path('views/livewire/admin/groups'),
-        resource_path('views/livewire'),
-    ];
-    $removedLegacyFiles = [];
-    foreach ($targetDirs as $d) {
-        if (!is_dir($d)) continue;
-        $scan = @scandir($d);
-        if (!$scan) continue;
-        foreach ($scan as $file) {
-            if ($file === '.' || $file === '..') continue;
-            // Match any file containing non-ASCII character (⚡, тЪб, etc.) or leading question mark
-            if (preg_match('/[^\x20-\x7E]/', $file) || str_starts_with($file, '?')) {
-                $filePath = $d . '/' . $file;
-                if (is_file($filePath)) {
-                    @unlink($filePath);
-                    $removedLegacyFiles[] = $file;
-                }
-            }
-        }
-    }
-
-    // 2. Force delete all cached blade files in storage/framework/views (including subdirectories)
-    $cleanDir = function($dir) use (&$cleanDir) {
-        $files = glob($dir . '/*');
-        if ($files) {
-            foreach ($files as $f) {
-                if (is_file($f) && basename($f) !== '.gitignore') {
-                    @unlink($f);
-                } elseif (is_dir($f)) {
-                    $cleanDir($f);
-                    @rmdir($f);
-                }
-            }
-        }
-    };
-    $cleanDir(storage_path('framework/views'));
-
-    // 3. Recalculate all group standings from completed matches to eliminate redundant matches and phantom draws
-    $recalculatedGroupsCount = 0;
     try {
-        $groups = \App\Models\Group::all();
-        foreach ($groups as $grp) {
-            \App\Models\TournamentMatch::recalculateGroupStandings($grp->id);
-            $recalculatedGroupsCount++;
+        $targetDirs = [
+            resource_path('views/components/admin/matches'),
+            resource_path('views/components/admin/groups'),
+            resource_path('views/components'),
+            resource_path('views/livewire/admin/matches'),
+            resource_path('views/livewire/admin/groups'),
+            resource_path('views/livewire'),
+        ];
+        $removedLegacyFiles = [];
+        foreach ($targetDirs as $d) {
+            if (!is_dir($d)) continue;
+            $scan = @scandir($d);
+            if (!$scan) continue;
+            foreach ($scan as $file) {
+                if ($file === '.' || $file === '..') continue;
+                // Match any file containing non-ASCII character (⚡, тЪб, etc.) or leading question mark
+                if (preg_match('/[^\x20-\x7E]/', $file) || str_starts_with($file, '?')) {
+                    $filePath = $d . '/' . $file;
+                    if (is_file($filePath)) {
+                        @unlink($filePath);
+                        $removedLegacyFiles[] = $file;
+                    }
+                }
+            }
+        }
+        $removedCount = count($removedLegacyFiles);
+        if ($removedCount > 0) {
+            $extraMsg .= "<p style='color:#047857; font-size:12px; margin-top:6px;'>Dibersihkan $removedCount fail legasi lama: " . htmlspecialchars(implode(', ', array_slice($removedLegacyFiles, 0, 5))) . "</p>";
         }
     } catch (\Throwable $e) {
         // Continue
     }
 
-    $extraMsg .= "<p style='color:#1d4ed8; font-size:12px; margin-top:6px;'>Kedudukan $recalculatedGroupsCount kumpulan telah dikira semula secara tepat berdasarkan keputusan perlawanan sebenar.</p>";
+    // 2. Force delete all cached blade files in storage/framework/views (including subdirectories)
+    try {
+        $cleanDir = function($dir) use (&$cleanDir) {
+            $files = glob($dir . '/*');
+            if ($files) {
+                foreach ($files as $f) {
+                    if (is_file($f) && basename($f) !== '.gitignore') {
+                        @unlink($f);
+                    } elseif (is_dir($f)) {
+                        $cleanDir($f);
+                        @rmdir($f);
+                    }
+                }
+            }
+        };
+        $cleanDir(storage_path('framework/views'));
+    } catch (\Throwable $e) {
+        // Continue
+    }
+
+    // 3. Recalculate all group standings from completed matches to eliminate redundant matches and phantom draws
+    try {
+        if (class_exists(\App\Models\Group::class) && method_exists(\App\Models\TournamentMatch::class, 'recalculateGroupStandings')) {
+            $recalculatedGroupsCount = 0;
+            $groups = \App\Models\Group::all();
+            foreach ($groups as $grp) {
+                \App\Models\TournamentMatch::recalculateGroupStandings($grp->id);
+                $recalculatedGroupsCount++;
+            }
+            if ($recalculatedGroupsCount > 0) {
+                $extraMsg .= "<p style='color:#1d4ed8; font-size:12px; margin-top:6px;'>Kedudukan $recalculatedGroupsCount kumpulan telah dikira semula secara tepat berdasarkan keputusan perlawanan sebenar.</p>";
+            }
+        }
+    } catch (\Throwable $e) {
+        $extraMsg .= "<p style='color:#b91c1c; font-size:12px; margin-top:6px;'>Nota pengiraan: " . htmlspecialchars($e->getMessage()) . "</p>";
+    }
 
     return "<div style='font-family:sans-serif; text-align:center; padding:50px; background:#f0fdf4; border:2px solid #86efac; border-radius:20px; max-width:600px; margin:50px auto;'>
         <h2 style='color:#15803d; margin-bottom:10px;'>✅ Semua Cache & Fail Lama Berjaya Dibersihkan!</h2>
