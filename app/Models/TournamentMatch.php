@@ -395,21 +395,24 @@ class TournamentMatch extends Model
                     ->get();
 
                 if ($groups->count() === 2) {
+                    // For 2-group categories (e.g. U15 & U20 Sky Soccer): ONLY Trophy Knockout exists, NO Cup!
+                    if ($stg !== 'trophy_knockout') {
+                        self::where('category_id', $categoryId)->where('stage', 'cup_knockout')->delete();
+                        continue;
+                    }
+
                     $groupA = $groups[0];
                     $groupB = $groups[1];
                     $standingsA = $groupA->getStandings();
                     $standingsB = $groupB->getStandings();
 
-                    // For Trophy: 3rd place of Group A vs 3rd place of Group B (index 2)
-                    // For Cup: 5th place of Group A vs 5th place of Group B (index 4) if exists
-                    $rankIdx = ($stg === 'cup_knockout') ? 4 : 2;
-
-                    $teamA = isset($standingsA[$rankIdx]) ? $standingsA[$rankIdx]->team_id : null;
-                    $teamB = isset($standingsB[$rankIdx]) ? $standingsB[$rankIdx]->team_id : null;
+                    // 3rd place of Group A vs 3rd place of Group B (index 2)
+                    $teamA = isset($standingsA[2]) ? $standingsA[2]->team_id : null;
+                    $teamB = isset($standingsB[2]) ? $standingsB[2]->team_id : null;
 
                     if ($teamA || $teamB) {
                         $p5 = self::where('category_id', $categoryId)
-                            ->where('stage', $stg)
+                            ->where('stage', 'trophy_knockout')
                             ->where('round_name', 'Penentuan Tempat Ke-5')
                             ->where('bracket_position', 1)
                             ->first();
@@ -417,7 +420,7 @@ class TournamentMatch extends Model
                         if (!$p5) {
                             self::create([
                                 'category_id'      => $categoryId,
-                                'stage'            => $stg,
+                                'stage'            => 'trophy_knockout',
                                 'round_name'       => 'Penentuan Tempat Ke-5',
                                 'bracket_position' => 1,
                                 'home_team_id'     => $teamA,

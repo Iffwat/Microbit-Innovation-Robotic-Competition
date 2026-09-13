@@ -63,7 +63,7 @@ new class extends Component {
         } else {
             $this->createBracket($categoryId, 'trophy_knockout', $standings, $groupNames, 0, 1);
             
-            if ($includeCup) {
+            if ($includeCup && $groupCount >= 4) {
                 $this->createBracket($categoryId, 'cup_knockout', $standings, $groupNames, 2, 3);
             }
 
@@ -419,20 +419,19 @@ new class extends Component {
                 'status' => 'scheduled',
                 'field_number' => 3,
             ]);
-        } elseif ($groupCount === 2) {
+        } elseif ($groupCount === 2 && $stage === 'trophy_knockout') {
             // Pilihan 1: Perlawanan Penentuan Terus (1 Perlawanan Sahaja)
             // Tempat Ke-3 Kumpulan A vs Tempat Ke-3 Kumpulan B (Penentuan Tempat Ke-5)
             $groupA = $groupNames[0];
             $groupB = $groupNames[1];
-            $rankIdx = ($stage === 'cup_knockout') ? 4 : 2;
 
-            $teamA = isset($standings[$groupA][$rankIdx]) ? $standings[$groupA][$rankIdx]->team_id : null;
-            $teamB = isset($standings[$groupB][$rankIdx]) ? $standings[$groupB][$rankIdx]->team_id : null;
+            $teamA = isset($standings[$groupA][2]) ? $standings[$groupA][2]->team_id : null;
+            $teamB = isset($standings[$groupB][2]) ? $standings[$groupB][2]->team_id : null;
 
             if ($teamA || $teamB) {
                 TournamentMatch::create([
                     'category_id' => $categoryId,
-                    'stage' => $stage,
+                    'stage' => 'trophy_knockout',
                     'round_name' => 'Penentuan Tempat Ke-5',
                     'bracket_position' => 1,
                     'home_team_id' => $teamA,
@@ -581,12 +580,15 @@ new class extends Component {
                             <span class="text-xs font-medium text-white/70">
                                 @if($groupCount === 13)
                                     ({{ __('26 Pasukan: 13 Juara + 13 Naib Juara | 6 BYE ke P16') }})
+                                @elseif($groupCount === 2)
+                                    ({{ __('Juara, Naib Juara & Penentuan Tempat Ke-5') }})
                                 @else
                                     ({{ __('Juara & Naib Juara Kumpulan sahaja') }})
                                 @endif
                             </span>
                         </button>
                         
+                        @if($groupCount >= 4)
                         <button wire:click="generateKnockout({{ $cat->id }}, true)" class="w-full bg-secondary hover:bg-secondary/90 text-white font-bold py-4 rounded-2xl shadow-lg shadow-secondary/20 transition-all flex flex-col items-center justify-center gap-1">
                             <span>🏆 &amp; 🥈 {{ __('Jana Pusingan Trofi & Piala Serentak') }}</span>
                             <span class="text-xs font-medium text-white/70 text-center px-4 leading-relaxed">
@@ -597,6 +599,7 @@ new class extends Component {
                                 @endif
                             </span>
                         </button>
+                        @endif
 
                         @if($hasKnockouts)
                         <button wire:click="deleteKnockout({{ $cat->id }})" 
