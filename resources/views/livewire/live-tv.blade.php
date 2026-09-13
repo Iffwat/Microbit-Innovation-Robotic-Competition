@@ -29,7 +29,7 @@ new class extends Component {
             ];
 
             foreach ($fieldChunk as $field) {
-                $activeMatch = TournamentMatch::with(['homeTeam', 'awayTeam', 'group.category'])
+                $activeMatch = TournamentMatch::with(['homeTeam', 'awayTeam', 'group.category', 'category'])
                     ->where('field_number', $field)
                     ->where('status', 'in_progress')
                     ->first();
@@ -38,7 +38,7 @@ new class extends Component {
                     $chunkData['active']->push($activeMatch);
                 }
 
-                $upcomingMatch = TournamentMatch::with(['homeTeam', 'awayTeam', 'group.category'])
+                $upcomingMatch = TournamentMatch::with(['homeTeam', 'awayTeam', 'group.category', 'category'])
                     ->where('field_number', $field)
                     ->where('status', 'scheduled')
                     ->orderBy('scheduled_time')
@@ -151,9 +151,21 @@ new class extends Component {
             $gameType = $soccerGroup ? $soccerGroup->game_type : 'isobot';
             $gameName = $gameType === 'isobot' ? 'ISOBOT SOCCER' : 'DRONE SKY SOCCER';
 
+            $groupCount = Group::where('category_id', $cat->id)
+                ->where('game_type', '!=', 'obstacle')
+                ->count();
+
+            // Strict safety: 2-group categories (e.g. U15 & U20 Sky Soccer) NEVER have Cup Knockout!
+            if ($groupCount === 2) {
+                TournamentMatch::where('category_id', $cat->id)->where('stage', 'cup_knockout')->delete();
+                $allowedStages = ['trophy_knockout'];
+            } else {
+                $allowedStages = ['trophy_knockout', 'cup_knockout'];
+            }
+
             $brackets = TournamentMatch::with(['homeTeam', 'awayTeam'])
                 ->where('category_id', $cat->id)
-                ->whereIn('stage', ['trophy_knockout', 'cup_knockout'])
+                ->whereIn('stage', $allowedStages)
                 ->orderBy('bracket_position')
                 ->orderBy('id')
                 ->get()
@@ -343,7 +355,7 @@ new class extends Component {
         
         foreach ($calls as $matchId => $callData) {
             if ($callData['expires_at'] > now()->timestamp) {
-                $match = TournamentMatch::with(['homeTeam', 'awayTeam', 'group.category'])->find($matchId);
+                $match = TournamentMatch::with(['homeTeam', 'awayTeam', 'group.category', 'category'])->find($matchId);
                 if ($match && $match->status === 'scheduled') {
                     $activeMatches[] = $match;
                 }
@@ -433,7 +445,7 @@ new class extends Component {
                                             </span>
                                         </div>
                                         <span class="text-[10px] font-bold text-white/70 uppercase tracking-widest bg-black/40 px-2 py-0.5 rounded border border-white/10">
-                                            {{ optional(optional($match->group)->category)->name ?? optional($match->category)->name ?? '' }}
+                                            {{ optional(optional($match->group)->category)->name ?? optional($match->category)->name ?? '' }}{{ $match->round_name ? ' · '.$match->round_name : '' }}
                                         </span>
                                     </div>
 
@@ -497,7 +509,7 @@ new class extends Component {
                                             {{ is_numeric($match->field_number) ? 'PADANG '.$match->field_number : $match->field_number }}
                                         </span>
                                         <span class="text-[9px] font-bold text-white/50 uppercase tracking-widest">
-                                            {{ optional(optional($match->group)->category)->name ?? optional($match->category)->name ?? '' }}
+                                            {{ optional(optional($match->group)->category)->name ?? optional($match->category)->name ?? '' }}{{ $match->round_name ? ' · '.$match->round_name : '' }}
                                         </span>
                                     </div>
                                     <div class="p-3">
@@ -1049,6 +1061,64 @@ new class extends Component {
                                         </div>
                                     @endif
 
+                                    {{-- 🎖️ 5TH PLACE PLAYOFF MATCH (If exists) --}}
+                                    @php $p5Match = $rankings['fifth_match'] ?? null; @endphp
+                                    @if($p5Match)
+                                        @php
+                                            $p5Done = $p5Match->status === 'completed' || $p5Match->winner_team_id;
+                                            $p5HomeW = $p5Match->winner_team_id && $p5Match->winner_team_id == $p5Match->home_team_id;
+                                            $p5AwayW = $p5Match->winner_team_id && $p5Match->winner_team_id == $p5Match->away_team_id;
+                                        @endphp
+                                        <div class="flex flex-col pt-1.5 border-t border-white/10">
+                                            <div class="flex items-center justify-center gap-1 pb-1 mb-1">
+                                                <span class="text-xs">🎖️</span>
+                                                <h4 class="text-[9px] font-black text-emerald-300 tracking-wider uppercase">
+                                                    Penentuan Tempat Ke-5
+                                                </h4>
+                                            </div>
+                                            <div class="rounded-xl overflow-hidden border border-emerald-500/30 bg-black/60 shadow">
+                                                <div class="flex items-center justify-between px-2.5 py-0.5 bg-emerald-500/10 border-b border-emerald-500/20">
+                                                    <span class="text-[8px] font-black text-emerald-300 uppercase tracking-wider">
+                                                        {{ $p5Match->field_number ? (is_numeric($p5Match->field_number) ? 'PADANG '.$p5Match->field_number : $p5Match->field_number) : 'PADANG TBD' }}
+                                                    </span>
+                                                    @if($p5Done)
+                                                        <span class="text-[7px] font-black text-emerald-400 bg-emerald-500/20 px-1 py-0.2 rounded">SELESAI</span>
+                                                    @elseif($p5Match->status === 'in_progress')
+                                                        <span class="text-[7px] font-black text-red-400 bg-red-500/20 px-1 py-0.2 rounded animate-pulse">LIVE</span>
+                                                    @else
+                                                        <span class="text-[7px] font-bold text-white/30">M#{{ $p5Match->bracket_position ?? $p5Match->id }}</span>
+                                                    @endif
+                                                </div>
+                                                <div class="divide-y divide-white/5">
+                                                    <div class="flex items-center justify-between px-2 py-1 {{ $p5HomeW ? 'bg-emerald-500/20' : 'bg-rose-500/[0.03]' }}">
+                                                        <div class="flex items-center gap-1 flex-1 min-w-0 pr-1">
+                                                            <span class="w-1 h-2.5 rounded-full {{ $p5HomeW ? 'bg-emerald-400' : 'bg-rose-500' }} shrink-0"></span>
+                                                            <span class="font-bold text-[10px] truncate {{ $p5HomeW ? 'text-emerald-300 font-black' : ($p5Match->homeTeam ? 'text-white' : 'text-white/30 italic') }}">
+                                                                @if($p5HomeW) ✓ @endif
+                                                                {{ $p5Match->homeTeam ? $p5Match->homeTeam->team_name : 'Menunggu' }}
+                                                            </span>
+                                                        </div>
+                                                        <span class="font-black text-[10px] tabular-nums px-1.5 py-0.5 rounded bg-black/60 border border-white/10 {{ $p5HomeW ? 'text-emerald-400' : ($p5Match->home_score !== null ? 'text-rose-300' : 'text-white/40') }}">
+                                                            {{ $p5Match->home_score !== null ? $p5Match->home_score : '-' }}
+                                                        </span>
+                                                    </div>
+                                                    <div class="flex items-center justify-between px-2 py-1 {{ $p5AwayW ? 'bg-emerald-500/20' : 'bg-sky-500/[0.03]' }}">
+                                                        <div class="flex items-center gap-1 flex-1 min-w-0 pr-1">
+                                                            <span class="w-1 h-2.5 rounded-full {{ $p5AwayW ? 'bg-emerald-400' : 'bg-sky-400' }} shrink-0"></span>
+                                                            <span class="font-bold text-[10px] truncate {{ $p5AwayW ? 'text-emerald-300 font-black' : ($p5Match->awayTeam ? 'text-white' : 'text-white/30 italic') }}">
+                                                                @if($p5AwayW) ✓ @endif
+                                                                {{ $p5Match->awayTeam ? $p5Match->awayTeam->team_name : 'Menunggu' }}
+                                                            </span>
+                                                        </div>
+                                                        <span class="font-black text-[10px] tabular-nums px-1.5 py-0.5 rounded bg-black/60 border border-white/10 {{ $p5AwayW ? 'text-emerald-400' : ($p5Match->away_score !== null ? 'text-sky-300' : 'text-white/40') }}">
+                                                            {{ $p5Match->away_score !== null ? $p5Match->away_score : '-' }}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endif
+
                                 </div>
 
                                 {{-- ------------------------------------------------------------- --}}
@@ -1223,6 +1293,7 @@ new class extends Component {
                                             <div class="flex items-center gap-2 overflow-hidden">
                                                 <span class="text-sm shrink-0">🎖️</span>
                                                 <div class="overflow-hidden">
+                                                    <div class="flex items-center gap-1">
                                                         <span class="text-[8px] font-black text-emerald-400 uppercase tracking-widest leading-tight">TEMPAT KE-5</span>
                                                         @if($rankings['fifth_source'] === 'playoff')
                                                             <span class="text-[7px] font-black text-emerald-300 bg-emerald-500/20 px-1 py-0.2 rounded border border-emerald-500/30">
