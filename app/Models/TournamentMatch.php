@@ -388,6 +388,59 @@ class TournamentMatch extends Model
                 ->exists();
 
             if (!$hasQF) {
+                // Check if category has 2 groups (Group A and Group B)
+                $groups = Group::where('category_id', $categoryId)
+                    ->where('game_type', '!=', 'obstacle')
+                    ->orderBy('group_letter')
+                    ->get();
+
+                if ($groups->count() === 2) {
+                    $groupA = $groups[0];
+                    $groupB = $groups[1];
+                    $standingsA = $groupA->getStandings();
+                    $standingsB = $groupB->getStandings();
+
+                    // For Trophy: 3rd place of Group A vs 3rd place of Group B (index 2)
+                    // For Cup: 5th place of Group A vs 5th place of Group B (index 4) if exists
+                    $rankIdx = ($stg === 'cup_knockout') ? 4 : 2;
+
+                    $teamA = isset($standingsA[$rankIdx]) ? $standingsA[$rankIdx]->team_id : null;
+                    $teamB = isset($standingsB[$rankIdx]) ? $standingsB[$rankIdx]->team_id : null;
+
+                    if ($teamA || $teamB) {
+                        $p5 = self::where('category_id', $categoryId)
+                            ->where('stage', $stg)
+                            ->where('round_name', 'Penentuan Tempat Ke-5')
+                            ->where('bracket_position', 1)
+                            ->first();
+
+                        if (!$p5) {
+                            self::create([
+                                'category_id'      => $categoryId,
+                                'stage'            => $stg,
+                                'round_name'       => 'Penentuan Tempat Ke-5',
+                                'bracket_position' => 1,
+                                'home_team_id'     => $teamA,
+                                'away_team_id'     => $teamB,
+                                'status'           => 'scheduled',
+                                'field_number'     => 3,
+                            ]);
+                        } else {
+                            if ($p5->status === 'scheduled') {
+                                $changed = false;
+                                if ($p5->home_team_id !== $teamA) {
+                                    $p5->home_team_id = $teamA;
+                                    $changed = true;
+                                }
+                                if ($p5->away_team_id !== $teamB) {
+                                    $p5->away_team_id = $teamB;
+                                    $changed = true;
+                                }
+                                if ($changed) $p5->save();
+                            }
+                        }
+                    }
+                }
                 continue;
             }
 

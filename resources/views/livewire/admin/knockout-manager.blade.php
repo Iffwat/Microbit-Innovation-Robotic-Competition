@@ -419,6 +419,28 @@ new class extends Component {
                 'status' => 'scheduled',
                 'field_number' => 3,
             ]);
+        } elseif ($groupCount === 2) {
+            // Pilihan 1: Perlawanan Penentuan Terus (1 Perlawanan Sahaja)
+            // Tempat Ke-3 Kumpulan A vs Tempat Ke-3 Kumpulan B (Penentuan Tempat Ke-5)
+            $groupA = $groupNames[0];
+            $groupB = $groupNames[1];
+            $rankIdx = ($stage === 'cup_knockout') ? 4 : 2;
+
+            $teamA = isset($standings[$groupA][$rankIdx]) ? $standings[$groupA][$rankIdx]->team_id : null;
+            $teamB = isset($standings[$groupB][$rankIdx]) ? $standings[$groupB][$rankIdx]->team_id : null;
+
+            if ($teamA || $teamB) {
+                TournamentMatch::create([
+                    'category_id' => $categoryId,
+                    'stage' => $stage,
+                    'round_name' => 'Penentuan Tempat Ke-5',
+                    'bracket_position' => 1,
+                    'home_team_id' => $teamA,
+                    'away_team_id' => $teamB,
+                    'status' => 'scheduled',
+                    'field_number' => 3,
+                ]);
+            }
         }
     }
 };
