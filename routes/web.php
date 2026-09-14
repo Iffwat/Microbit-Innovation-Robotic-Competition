@@ -7,10 +7,11 @@ use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\Admin\AuthController;
+use App\Http\Controllers\Admin\EditionController;
 
-// Redirect root to admin dashboard or public semakan
+// Redirect root to admin editions hub or public semakan
 Route::get('/', function () {
-    return redirect()->route(session('auth_role') ? 'admin.dashboard' : 'semakan');
+    return redirect()->route(session('auth_role') ? 'admin.editions' : 'semakan');
 });
 
 // Language Switcher Route
@@ -153,6 +154,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
 // ─── Admin Routes (protected by PIN) ─────────────────────────────────────────
 Route::middleware('pin.auth')->prefix('admin')->name('admin.')->group(function () {
     
+    // Tournament Edition Selection Hub (Layer before managing specific year)
+    Route::get('/', [EditionController::class, 'index'])->name('index');
+    Route::get('/edisi', [EditionController::class, 'index'])->name('editions');
+    Route::post('/edisi/pilih', [EditionController::class, 'select'])->name('editions.select');
+    Route::get('/edisi/{year}/persediaan', [EditionController::class, 'prepare'])->name('editions.prepare');
+
     // Check-In (Accessible by both Master and Volunteer)
     Route::get('/semak-masuk', function () {
         return view('admin.checkin.index');

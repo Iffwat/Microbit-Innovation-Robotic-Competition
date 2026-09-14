@@ -14,7 +14,12 @@
         <div class="relative flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
             <div>
                 <p class="text-white/60 text-sm font-medium mb-1">{{ __('Selamat Datang, Master Admin') }}</p>
-                <h1 class="text-2xl md:text-3xl font-extrabold mb-1">{{ __('Microbit Innovation Robotic') }}</h1>
+                <h1 class="text-2xl md:text-3xl font-extrabold mb-1 flex items-center flex-wrap gap-2">
+                    <span>{{ __('Microbit Innovation Robotic') }}</span>
+                    <span class="text-xs font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-3 py-1 rounded-full">
+                        mIRC {{ session('active_edition', '2026') }}
+                    </span>
+                </h1>
                 <p class="text-white/70 text-sm">{{ __('Sistem Pengurusan Pertandingan') }} • {{ now()->format('d F Y') }}</p>
                 <div class="flex gap-2 mt-4 flex-wrap">
                     @if($totalTeams === 0)

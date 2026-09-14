@@ -37,6 +37,15 @@
             </div>
 
             <div class="navbar-end gap-3">
+                {{-- Active Edition Pill / Switcher --}}
+                <a href="{{ route('admin.editions') }}"
+                   class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-primary/25 bg-primary/5 hover:bg-primary/10 transition-all text-xs group"
+                   title="Klik untuk tukar edisi kejohanan">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span class="font-extrabold text-primary">mIRC {{ session('active_edition', '2026') }}</span>
+                    <span class="text-[10px] font-bold text-primary/70 bg-primary/10 px-1.5 py-0.5 rounded-md group-hover:bg-primary group-hover:text-white transition-all">Tukar ⇄</span>
+                </a>
+
                 {{-- Language Toggle --}}
                 <div class="join border border-base-300 rounded-lg overflow-hidden">
                     <a href="{{ route('lang.switch', 'ms') }}"
@@ -132,12 +141,31 @@
                 <p class="text-xs text-base-content/40 mt-0.5">{{ __('Sistem Pengurusan Pertandingan') }}</p>
             </div>
 
+            {{-- Active Edition Card in Sidebar --}}
+            <div class="mx-3 mt-3 p-3 bg-gradient-to-r from-primary/10 via-secondary/10 to-transparent rounded-2xl border border-primary/15 flex items-center justify-between">
+                <div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        <p class="text-[10px] font-black uppercase tracking-wider text-primary">Edisi Dipilih</p>
+                    </div>
+                    <p class="text-xs font-black text-base-content mt-0.5">mIRC {{ session('active_edition', '2026') }}</p>
+                </div>
+                <a href="{{ route('admin.editions') }}" class="text-[11px] font-bold text-primary hover:underline bg-white px-2 py-1 rounded-lg border border-base-200 shadow-sm" title="Tukar edisi kejohanan">
+                    Tukar ⇄
+                </a>
+            </div>
+
             {{-- Navigation --}}
             <div class="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
 
                 @if(session('auth_role') === 'master')
                 {{-- Master-only section --}}
                 <p class="px-4 pt-2 pb-1 text-[10px] font-bold uppercase tracking-widest text-base-content/30">{{ __('Utama') }}</p>
+                <a href="{{ route('admin.editions') }}"
+                   class="nav-item {{ request()->routeIs('admin.editions*') ? 'active' : '' }}">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    {{ __('Pusat Edisi (Tahun)') }}
+                </a>
                 <a href="{{ route('admin.dashboard') }}"
                    class="nav-item {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>

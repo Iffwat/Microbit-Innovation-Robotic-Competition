@@ -12,7 +12,7 @@ class AuthController extends Controller
     public function showLogin()
     {
         if (session('auth_role')) {
-            return redirect()->route('admin.checkin.index');
+            return redirect()->route('admin.editions');
         }
         return view('admin.login');
     }
@@ -40,7 +40,7 @@ class AuthController extends Controller
             RateLimiter::clear($throttleKey);
             $request->session()->regenerate();
             session(['auth_role' => 'master']);
-            return redirect()->route('admin.dashboard')->with('success', __('Berjaya log masuk sebagai Master Admin.'));
+            return redirect()->route('admin.editions')->with('success', __('Berjaya log masuk sebagai Master Admin. Sila pilih edisi kejohanan.'));
         }
 
         // 3. Check Volunteer PIN
@@ -48,7 +48,7 @@ class AuthController extends Controller
             RateLimiter::clear($throttleKey);
             $request->session()->regenerate();
             session(['auth_role' => 'volunteer']);
-            return redirect()->route('admin.checkin.index')->with('success', __('Berjaya log masuk sebagai Sukarelawan.'));
+            return redirect()->route('admin.editions')->with('success', __('Berjaya log masuk sebagai Sukarelawan. Sila pilih edisi kejohanan.'));
         }
 
         // 4. Record failed attempt
