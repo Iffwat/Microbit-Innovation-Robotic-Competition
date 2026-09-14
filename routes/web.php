@@ -137,6 +137,9 @@ Route::get('/semakan', function() {
 })->name('semakan');
 
 Route::get('/live-tv', function() {
+    if (config('app.event_concluded', env('EVENT_CONCLUDED', true))) {
+        return redirect()->route('semakan');
+    }
     return view('pages.live-tv');
 })->name('live.tv');
 
