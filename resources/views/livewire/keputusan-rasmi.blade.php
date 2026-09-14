@@ -17,7 +17,7 @@ new class extends Component {
     #[Url(as: 'q')]
     public string $search = '';
 
-    public array $activeCategoryTabs = []; // [sectionKey => 'trophy' | 'cup' | 'groups']
+    public array $activeCategoryTabs = []; // [sectionKey => 'trophy' | 'cup']
 
     public function setCategoryTab(string $sectionKey, string $tab)
     {
@@ -134,28 +134,9 @@ new class extends Component {
                     $matches = collect();
                 }
 
-                $trophyRankings = $this->calculateStageRankings($matches, 'trophy_knockout', $catId);
+                $trophyRankings = $this->calculateStageRankings($matches, 'trophy_knockout', $catId, $gt);
                 $hasCup = $matches->where('stage', 'cup_knockout')->isNotEmpty();
-                $cupRankings = $hasCup ? $this->calculateStageRankings($matches, 'cup_knockout', $catId) : null;
-
-                $hasKnockoutData = !empty($trophyRankings['first']);
-
-                // Fetch full group standings
-                try {
-                    $groups = Group::where('category_id', $catId)
-                        ->where('game_type', $gt)
-                        ->orderBy('group_letter')
-                        ->get();
-
-                    $groupStandings = $groups->map(function($g) {
-                        return [
-                            'group'     => $g,
-                            'standings' => $g->getStandings(),
-                        ];
-                    });
-                } catch (\Throwable $e) {
-                    $groupStandings = collect();
-                }
+                $cupRankings = $hasCup ? $this->calculateStageRankings($matches, 'cup_knockout', $catId, $gt) : null;
 
                 $data[$sectionKey] = [
                     'key'             => $sectionKey,
@@ -164,11 +145,9 @@ new class extends Component {
                     'game_type'       => $gt,
                     'game_name'       => $event['game_name'],
                     'icon'            => $event['icon'],
-                    'has_knockouts'   => $hasKnockoutData,
                     'trophy'          => $trophyRankings,
                     'has_cup'         => $hasCup,
                     'cup'             => $cupRankings,
-                    'groups'          => $groupStandings,
                 ];
             }
         }
@@ -176,15 +155,9 @@ new class extends Component {
         return $data;
     }
 
-    private function calculateStageRankings($allMatches, string $stage, int $categoryId): array
+    private function calculateStageRankings($allMatches, string $stage, int $categoryId, string $gameType = 'isobot'): array
     {
         $matches = $allMatches->where('stage', $stage);
-        if ($matches->isEmpty()) {
-            return [
-                'first' => null, 'second' => null, 'third' => null,
-                'fourth' => null, 'fifth' => null, 'fifth_goals' => null
-            ];
-        }
 
         $finalMatch = $matches->firstWhere('round_name', 'Akhir');
         $thirdMatch = $matches->firstWhere('round_name', 'Penentuan Tempat Ke-3');
@@ -247,6 +220,24 @@ new class extends Component {
             });
             $fifthId = !empty($qfLosers) ? $qfLosers[0]['team_id'] : null;
             $fifthGoals = !empty($qfLosers) ? $qfLosers[0]['total_goals'] : null;
+        }
+
+        // Fallback to top group standings if knockouts did not produce a 1st place winner
+        if (!$firstId) {
+            $topGroupTeams = GroupTeam::whereHas('group', function($q) use ($categoryId, $gameType) {
+                $q->where('category_id', $categoryId)->where('game_type', $gameType);
+            })
+            ->orderBy('points', 'desc')
+            ->orderBy('goal_difference', 'desc')
+            ->orderBy('goals_for', 'desc')
+            ->limit(5)
+            ->get();
+
+            $firstId  = $topGroupTeams->get(0)?->team_id;
+            $secondId = $topGroupTeams->get(1)?->team_id;
+            $thirdId  = $topGroupTeams->get(2)?->team_id;
+            $fourthId = $topGroupTeams->get(3)?->team_id;
+            $fifthId  = $topGroupTeams->get(4)?->team_id;
         }
 
         $teamIds = array_filter([$firstId, $secondId, $thirdId, $fourthId, $fifthId]);
@@ -465,7 +456,7 @@ new class extends Component {
                 $cat = $data['category'];
                 $gt = $data['game_type'];
                 $isObstacle = $gt === 'obstacle';
-                $activeTab = $this->activeCategoryTabs[$sectionKey] ?? (!empty($data['has_knockouts']) ? 'trophy' : 'groups');
+                $activeTab = $this->activeCategoryTabs[$sectionKey] ?? 'trophy';
             @endphp
 
             <div class="bg-white rounded-3xl border border-base-200 shadow-md overflow-hidden">
@@ -485,24 +476,16 @@ new class extends Component {
                         </div>
                     </div>
 
-                    {{-- Navigation Tabs if Soccer --}}
-                    @if(!$isObstacle)
+                    {{-- Navigation Tabs if Soccer (Trofi vs Piala) --}}
+                    @if(!$isObstacle && !empty($data['has_cup']))
                         <div class="flex bg-black/40 p-1 rounded-xl border border-white/10 flex-wrap gap-1">
-                            @if(!empty($data['has_knockouts']))
-                                <button wire:click="setCategoryTab('{{ $sectionKey }}', 'trophy')"
-                                        class="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors {{ $activeTab === 'trophy' ? 'bg-amber-400 text-slate-950 shadow-sm' : 'text-white/70 hover:text-white' }}">
-                                    🏆 Keputusan Akhir &amp; Pemenang
-                                </button>
-                                @if(!empty($data['has_cup']))
-                                    <button wire:click="setCategoryTab('{{ $sectionKey }}', 'cup')"
-                                            class="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors {{ $activeTab === 'cup' ? 'bg-slate-300 text-slate-950 shadow-sm' : 'text-white/70 hover:text-white' }}">
-                                        🥈 Pusingan Piala
-                                    </button>
-                                @endif
-                            @endif
-                            <button wire:click="setCategoryTab('{{ $sectionKey }}', 'groups')"
-                                    class="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors {{ $activeTab === 'groups' ? 'bg-white text-slate-950 shadow-sm' : 'text-white/70 hover:text-white' }}">
-                                📊 Kedudukan Kumpulan ({{ $data['groups']->count() }})
+                            <button wire:click="setCategoryTab('{{ $sectionKey }}', 'trophy')"
+                                    class="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors {{ $activeTab === 'trophy' ? 'bg-amber-400 text-slate-950 shadow-sm' : 'text-white/70 hover:text-white' }}">
+                                🏆 Pusingan Trofi
+                            </button>
+                            <button wire:click="setCategoryTab('{{ $sectionKey }}', 'cup')"
+                                    class="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors {{ $activeTab === 'cup' ? 'bg-slate-300 text-slate-950 shadow-sm' : 'text-white/70 hover:text-white' }}">
+                                🥈 Pusingan Piala
                             </button>
                         </div>
                     @endif
@@ -553,91 +536,10 @@ new class extends Component {
                         @endif
 
                     @else
-                        {{-- ================= SOCCER PODIUM OR GROUP STANDINGS ================= --}}
-
-                        @if($activeTab === 'groups' || empty($data['has_knockouts']))
-                            {{-- FULL GROUP STANDINGS --}}
-                            <div class="space-y-6">
-                                <div class="flex items-center justify-between border-b border-base-200 pb-2">
-                                    <h3 class="font-black text-sm text-base-content uppercase tracking-wider flex items-center gap-2">
-                                        <span>📊 Kedudukan Penuh Peringkat Kumpulan</span>
-                                    </h3>
-                                    <span class="text-xs text-base-content/50 font-medium">{{ $data['groups']->count() }} Kumpulan</span>
-                                </div>
-
-                                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                    @foreach($data['groups'] as $gData)
-                                        @php $grp = $gData['group']; @endphp
-                                        <div class="border border-base-200 rounded-2xl overflow-hidden shadow-sm bg-base-50/30 flex flex-col">
-                                            <div class="bg-gradient-to-r from-base-200/60 to-base-100 px-4 py-2.5 border-b border-base-200 flex items-center justify-between">
-                                                <span class="font-black text-xs text-primary uppercase tracking-wider">
-                                                    Kumpulan {{ $grp->group_letter }}
-                                                </span>
-                                                <span class="text-[10px] text-base-content/50 font-bold">
-                                                    {{ $gData['standings']->count() }} Pasukan
-                                                </span>
-                                            </div>
-
-                                            <div class="overflow-x-auto flex-1">
-                                                <table class="w-full text-left text-xs">
-                                                    <thead>
-                                                        <tr class="border-b border-base-200 text-[10px] font-black text-base-content/40 uppercase">
-                                                            <th class="py-2 px-3 w-8 text-center">#</th>
-                                                            <th class="py-2 px-3">Pasukan</th>
-                                                            <th class="py-2 px-1.5 text-center" title="Perlawanan">P</th>
-                                                            <th class="py-2 px-1.5 text-center" title="Menang">M</th>
-                                                            <th class="py-2 px-1.5 text-center" title="Seri">S</th>
-                                                            <th class="py-2 px-1.5 text-center" title="Kalah">K</th>
-                                                            <th class="py-2 px-1.5 text-center" title="Jaringan">J</th>
-                                                            <th class="py-2 px-1.5 text-center" title="Bolos">B</th>
-                                                            <th class="py-2 px-1.5 text-center" title="Perbezaan Gol">PG</th>
-                                                            <th class="py-2 px-2 text-center font-black text-primary" title="Mata">MT</th>
-                                                            <th class="py-2 px-3 text-right font-black text-emerald-700" title="Jumlah Gol Keseluruhan dari permulaan hingga akhir">⚽ Jumlah Gol</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody class="divide-y divide-base-200">
-                                                        @foreach($gData['standings'] as $pos => $gtRow)
-                                                            @php $totGoals = $this->getTeamTotalGoals($gtRow->team_id); @endphp
-                                                            <tr class="{{ $pos === 0 ? 'bg-emerald-50/50 font-bold' : ($pos === 1 ? 'bg-blue-50/30' : '') }}">
-                                                                <td class="py-2.5 px-3 text-center font-black text-base-content/60">
-                                                                    {{ $pos + 1 }}
-                                                                </td>
-                                                                <td class="py-2.5 px-3">
-                                                                    <span class="font-extrabold text-base-content block leading-tight">{{ $gtRow->team->team_name ?? '—' }}</span>
-                                                                    <span class="text-[10px] text-base-content/50 block truncate max-w-[150px]">{{ $gtRow->team->school_name ?? '' }}</span>
-                                                                </td>
-                                                                <td class="py-2.5 px-1.5 text-center text-base-content/60">{{ $gtRow->played }}</td>
-                                                                <td class="py-2.5 px-1.5 text-center text-emerald-700 font-bold">{{ $gtRow->won }}</td>
-                                                                <td class="py-2.5 px-1.5 text-center text-base-content/60">{{ $gtRow->drawn }}</td>
-                                                                <td class="py-2.5 px-1.5 text-center text-red-600">{{ $gtRow->lost }}</td>
-                                                                <td class="py-2.5 px-1.5 text-center text-base-content/70">{{ $gtRow->goals_for }}</td>
-                                                                <td class="py-2.5 px-1.5 text-center text-base-content/70">{{ $gtRow->goals_against }}</td>
-                                                                <td class="py-2.5 px-1.5 text-center font-bold {{ $gtRow->goal_difference > 0 ? 'text-emerald-700' : ($gtRow->goal_difference < 0 ? 'text-red-600' : 'text-base-content/50') }}">
-                                                                    {{ $gtRow->goal_difference > 0 ? '+'.$gtRow->goal_difference : $gtRow->goal_difference }}
-                                                                </td>
-                                                                <td class="py-2.5 px-2 text-center font-black text-primary text-sm">
-                                                                    {{ $gtRow->points }}
-                                                                </td>
-                                                                <td class="py-2.5 px-3 text-right font-black text-emerald-700">
-                                                                    <span class="inline-flex items-center gap-1 bg-emerald-100/70 text-emerald-900 px-2 py-0.5 rounded-md font-mono text-[11px]">
-                                                                        {{ $totGoals }}
-                                                                    </span>
-                                                                </td>
-                                                            </tr>
-                                                        @endforeach
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                    @endforeach
-                                </div>
-                            </div>
-
-                        @else
-                            {{-- KNOCKOUT PODIUM & WINNERS SHOWCASE --}}
-                            @php
-                                $currentRankings = ($activeTab === 'cup' && !empty($data['cup'])) ? $data['cup'] : $data['trophy'];
-                            @endphp
+                        {{-- ================= SOCCER PODIUM & WINNERS SHOWCASE ================= --}}
+                        @php
+                            $currentRankings = ($activeTab === 'cup' && !empty($data['cup'])) ? $data['cup'] : $data['trophy'];
+                        @endphp
 
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                                 {{-- 🥇 1st Place (JUARA) --}}
@@ -791,7 +693,6 @@ new class extends Component {
                                     @endif
                                 </div>
                             </div>
-                        @endif
 
                     @endif
                 </div>
